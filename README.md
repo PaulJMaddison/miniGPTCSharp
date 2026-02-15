@@ -339,3 +339,11 @@ If you care about performance, benchmark on your machine and treat results as wo
 MiniGPTSharp is for learning, not production.
 
 If you treat the code like an educational "transparent box" and inspect each step, you will build a practical mental model of how GPT-style models generate text.
+
+## Golden Tests
+
+The `MiniGPTCSharp.Tests` project includes golden tests for deterministic generation.
+
+- They run `Generate()` with a fixed prompt, seed, token count, and `deterministic=true`.
+- They compare the full generated string against a locked expected output.
+- If a golden test fails after a code change, generation behavior has changed and the learning demo may have regressed.
