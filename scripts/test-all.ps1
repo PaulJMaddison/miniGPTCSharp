@@ -15,6 +15,25 @@ $SolutionPath = Join-Path $RepoRoot "miniGPTCSharp.sln"
 $CliProj      = Join-Path $RepoRoot "MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
 $TestsProj    = Join-Path $RepoRoot "MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj"
 
+function Run-Cli {
+    param([string[]]$CliArgs)
+
+    $baseArgs = @('run', '--project', $CliProj, '--configuration', 'Release', '--')
+    return (& dotnet @baseArgs @CliArgs | Out-String).Trim()
+}
+
+function Assert-Contains {
+    param(
+        [string]$Text,
+        [string]$Needle,
+        [string]$Message
+    )
+
+    if ($Text -notmatch [regex]::Escape($Needle)) {
+        throw "$Message. Missing '$Needle'."
+    }
+}
+
 function Require-Path([string]$path, [string]$label) {
   if (!(Test-Path $path)) {
     throw "$label not found: $path"

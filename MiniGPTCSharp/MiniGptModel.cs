@@ -47,15 +47,19 @@ public class MiniGptModel
             }
         }
 
-        for (var i = 0; i < maxNewTokens; i++)
+        var newTokensToGenerate = maxNewTokens;
+        var generated = 0;
+
+        while (generated < newTokensToGenerate)
         {
             var step = Step(tokens, Config.Temperature, Config.TopK, explain, rng, deterministic);
             tokens.Add(step.NextTokenId);
+            generated++;
 
             if (explain)
             {
-                Console.WriteLine($"\n--- Generation Step {i + 1} ---");
-                Console.Write(step.DebugText);
+                Console.WriteLine($"\n--- Generation Step {generated} ---");
+                Console.Write(FormatStepDebugText(step.DebugInfo, useBeginnerLabels: false));
             }
         }
 
@@ -94,45 +98,44 @@ public class MiniGptModel
         var useGreedy = deterministic || temperature <= 0f || candidateCount == 1;
         var filteredLogits = ApplyTopKFilter(nextTokenLogits, candidateCount);
         var probabilities = Softmax(filteredLogits, useGreedy ? 1f : temperature);
-        var candidates = BuildTopKCandidates(probabilities, candidateCount);
+        var candidates = BuildTopKCandidates(nextTokenLogits, probabilities, candidateCount);
 
         var selectedTokenId = useGreedy
-            ? candidates[0].id
+            ? candidates[0].TokenId
             : SampleFromDistribution(probabilities, rng ?? throw new InvalidOperationException("Sampling RNG is required in non-deterministic mode."));
 
         var selectedTokenText = Tokenizer.TokenText(selectedTokenId);
+        var selectedCandidate = candidates.FirstOrDefault(c => c.TokenId == selectedTokenId)
+            ?? new Candidate
+            {
+                TokenId = selectedTokenId,
+                Text = selectedTokenText,
+                Logit = nextTokenLogits[selectedTokenId],
+                Probability = probabilities[selectedTokenId]
+            };
+
+        var debugInfo = new StepDebugInfo
+        {
+            StepIndex = context.Count,
+            ContextTokenIds = context.ToArray(),
+            Temperature = temperature,
+            TopK = candidateCount,
+            Candidates = candidates,
+            Chosen = selectedCandidate
+        };
 
         var debugText = string.Empty;
         if (explain)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine($"Current length: {context.Count} tokens");
-            if (useGreedy)
             {
-                sb.AppendLine(deterministic
-                    ? "Sampling mode: deterministic argmax"
-                    : "Sampling mode: greedy (temperature <= 0 or top-k = 1)");
+                debugText = FormatStepDebugText(debugInfo, useBeginnerLabels: false);
             }
-            else
-            {
-                sb.AppendLine($"Sampling mode: temperature={temperature:0.###}, top-k={candidateCount}");
-            }
-
-            sb.AppendLine("Top-k candidates:");
-            foreach (var item in candidates)
-            {
-                sb.AppendLine($"  id={item.id,-3} text={item.text,-10} p={item.p:P2}");
-            }
-
-            sb.AppendLine($"Chosen token: id={selectedTokenId}, text={selectedTokenText}");
-            debugText = sb.ToString();
-        }
-
+        
         return new GenerationStepResult
         {
             NextTokenId = selectedTokenId,
             NextTokenText = selectedTokenText,
-            TopK = candidates,
+            TopK = candidates.Select(c => (c.TokenId, c.Text, c.Probability)).ToList(),
+            DebugInfo = debugInfo,
             Temperature = temperature,
             TopKValue = candidateCount,
             DebugText = debugText
@@ -257,14 +260,42 @@ public class MiniGptModel
             : exp.Select(v => v / sum).ToArray();
     }
 
-    private List<(int id, string text, float p)> BuildTopKCandidates(float[] probabilities, int topK)
+    private List<Candidate> BuildTopKCandidates(float[] logits, float[] probabilities, int topK)
     {
         return Enumerable.Range(0, probabilities.Length)
-            .Select(i => (id: i, text: Tokenizer.TokenText(i), p: probabilities[i]))
-            .Where(x => x.p > 0f)
-            .OrderByDescending(x => x.p)
+            .Select(i => new Candidate
+            {
+                TokenId = i,
+                Text = Tokenizer.TokenText(i),
+                Logit = logits[i],
+                Probability = probabilities[i]
+            })
+            .Where(x => x.Probability > 0f)
+            .OrderByDescending(x => x.Probability)
             .Take(topK)
             .ToList();
+    }
+
+    private static string FormatStepDebugText(StepDebugInfo debugInfo, bool useBeginnerLabels)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"Current length: {debugInfo.ContextTokenIds.Length} tokens");
+        sb.AppendLine($"Sampling: temperature={debugInfo.Temperature:0.###}, top-k={debugInfo.TopK}");
+
+        if (useBeginnerLabels)
+        {
+            sb.AppendLine("Logits are unnormalized scores; softmax turns them into probabilities.");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("Top candidates:");
+        foreach (var item in debugInfo.Candidates)
+        {
+            sb.AppendLine($"  id={item.TokenId,-3} text={item.Text,-10} logit={item.Logit,8:0.0000}  p={item.Probability,7:P2}");
+        }
+
+        sb.AppendLine($"Chosen token: id={debugInfo.Chosen.TokenId}, text={debugInfo.Chosen.Text}");
+        return sb.ToString();
     }
 
     private static int SampleFromDistribution(float[] probabilities, Random rng)

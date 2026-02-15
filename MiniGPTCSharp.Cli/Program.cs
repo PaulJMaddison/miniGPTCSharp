@@ -12,6 +12,18 @@ if (args[0].Equals("predict", StringComparison.OrdinalIgnoreCase))
     return;
 }
 
+if (args[0].Equals("generate", StringComparison.OrdinalIgnoreCase))
+{
+    RunGeneration(args[1..]);
+    return;
+}
+
+if (args[0].Equals("step", StringComparison.OrdinalIgnoreCase))
+{
+    RunGeneration(["--step", .. args[1..]]);
+    return;
+}
+
 if (args[0].Equals("learn", StringComparison.OrdinalIgnoreCase) && args.Length > 1)
 {
     RunLearnMode(args[1]);
@@ -32,6 +44,9 @@ static void RunGeneration(string[] args)
     var prompt = GetOption(args, "--prompt") ?? "The capital of France is";
     var explain = args.Contains("--explain", StringComparer.OrdinalIgnoreCase);
     var stepMode = args.Contains("--step", StringComparer.OrdinalIgnoreCase);
+    var showLogits = args.Contains("--show-logits", StringComparer.OrdinalIgnoreCase);
+    var logitsTopN = ParseInt(GetOption(args, "--logits-topn"), 10);
+    var logitsFormat = ParseLogitsFormat(GetOption(args, "--logits-format"));
     var deterministic = args.Contains("--deterministic", StringComparer.OrdinalIgnoreCase);
     var seed = ParseNullableInt(GetOption(args, "--seed"));
 
@@ -45,7 +60,7 @@ static void RunGeneration(string[] args)
         DisableLayerNorm = args.Contains("--no-layernorm", StringComparer.OrdinalIgnoreCase)
     };
 
-    var maxNewTokens = ParseInt(GetOption(args, "--max-new-tokens"), 8);
+    var tokensRequested = ParseInt(GetOption(args, "--tokens") ?? GetOption(args, "--max-new-tokens"), 8);
     var model = new MiniGptModel(config);
 
     if (deterministic)
@@ -59,11 +74,11 @@ static void RunGeneration(string[] args)
 
     if (stepMode)
     {
-        RunStepMode(model, prompt, maxNewTokens, explain, seed, deterministic);
+        RunStepMode(model, prompt, tokensRequested, explain, seed, deterministic, showLogits, logitsTopN, logitsFormat);
         return;
     }
 
-    var output = model.Generate(prompt, explain, maxNewTokens, seed, deterministic);
+    var output = model.Generate(prompt, explain, tokensRequested, seed, deterministic);
 
     Console.WriteLine("\n=== Final Output ===");
     Console.WriteLine(output);
@@ -72,10 +87,13 @@ static void RunGeneration(string[] args)
 static void RunStepMode(
     MiniGptModel model,
     string prompt,
-    int maxNewTokens,
+    int tokensRequested,
     bool explain,
     int? seed,
-    bool deterministic)
+    bool deterministic,
+    bool showLogits,
+    int logitsTopN,
+    LogitsDisplayFormat logitsFormat)
 {
     // Step mode is just the autocomplete loop with one explicit Step(...) call per token.
     var tokens = model.Tokenizer.Encode(prompt);
@@ -84,7 +102,10 @@ static void RunStepMode(
     Console.WriteLine("Step mode: generating one token at a time.");
     Console.WriteLine($"Start text: {model.Tokenizer.Decode(tokens)}");
 
-    for (var i = 0; i < maxNewTokens; i++)
+    var newTokensToGenerate = tokensRequested;
+    var generated = 0;
+
+    while (generated < newTokensToGenerate)
     {
         var step = model.Step(
             tokens,
@@ -97,11 +118,21 @@ static void RunStepMode(
 
         if (explain && !string.IsNullOrWhiteSpace(step.DebugText))
         {
-            Console.WriteLine($"\n--- Step {i + 1} ---");
-            Console.Write(step.DebugText);
+            Console.WriteLine($"\n--- Generation Step {generated + 1} ---");
+            PrintExplainStep(step.DebugInfo);
+            if (showLogits)
+            {
+                PrintLogitsSection(step.DebugInfo, logitsTopN, logitsFormat);
+            }
+        }
+        else if (showLogits)
+        {
+            Console.WriteLine($"\n--- Generation Step {generated + 1} ---");
+            PrintLogitsSection(step.DebugInfo, logitsTopN, logitsFormat);
         }
 
-        Console.WriteLine($"Text after step {i + 1}: {model.Tokenizer.Decode(tokens)}");
+        Console.WriteLine($"Text after step {generated + 1}: {model.Tokenizer.Decode(tokens)}");
+        generated++;
     }
 
     Console.WriteLine("\n=== Final Output ===");
@@ -173,13 +204,13 @@ static void RunLearnMode(string topic)
         case "attention":
             Console.WriteLine("Learning mode: attention");
             Console.WriteLine("We will run one generation step and show which earlier tokens the model focuses on.");
-            RunGeneration(new[] { "--prompt", "The capital of France is", "--explain", "--max-new-tokens", "1" });
+            RunGeneration(new[] { "--prompt", "The capital of France is", "--explain", "--tokens", "1" });
             break;
 
         case "embeddings":
             Console.WriteLine("Learning mode: embeddings");
             Console.WriteLine("Embeddings convert token IDs into vectors that the model can compare mathematically.");
-            RunGeneration(new[] { "--prompt", "AI model learning", "--explain", "--layers", "0", "--max-new-tokens", "1" });
+            RunGeneration(new[] { "--prompt", "AI model learning", "--explain", "--layers", "0", "--tokens", "1" });
             break;
 
         case "sampling":
@@ -212,14 +243,87 @@ static int? ParseNullableInt(string? value) => int.TryParse(value, out var parse
 
 static float ParseFloat(string? value, float fallback) => float.TryParse(value, out var parsed) ? parsed : fallback;
 
+static LogitsDisplayFormat ParseLogitsFormat(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return LogitsDisplayFormat.Raw;
+    }
+
+    return value.ToLowerInvariant() switch
+    {
+        "raw" => LogitsDisplayFormat.Raw,
+        "centered" => LogitsDisplayFormat.Centered,
+        "scaled" => LogitsDisplayFormat.Scaled,
+        _ => LogitsDisplayFormat.Raw
+    };
+}
+
+static void PrintExplainStep(StepDebugInfo debugInfo)
+{
+    Console.WriteLine($"Context tokens: {debugInfo.ContextTokenIds.Length}");
+    Console.WriteLine($"Sampling: temperature={debugInfo.Temperature:0.###}, top-k={debugInfo.TopK}");
+    Console.WriteLine("Logits are raw scores (higher = more likely). Softmax turns logits into probabilities.");
+    Console.WriteLine();
+    Console.WriteLine("Top candidates:");
+
+    foreach (var candidate in debugInfo.Candidates)
+    {
+        Console.WriteLine($"  id={candidate.TokenId,-3} text={candidate.Text,-10} logit={candidate.Logit,8:0.0000}  p={candidate.Probability,7:P2}");
+    }
+
+    Console.WriteLine($"Chosen token: id={debugInfo.Chosen.TokenId}, text={debugInfo.Chosen.Text}");
+}
+
+static void PrintLogitsSection(StepDebugInfo debugInfo, int logitsTopN, LogitsDisplayFormat logitsFormat)
+{
+    var candidatesToShow = debugInfo.Candidates.Take(Math.Clamp(logitsTopN, 1, debugInfo.Candidates.Count)).ToList();
+    var maxLogit = candidatesToShow.Max(c => c.Logit);
+    Console.WriteLine();
+    Console.WriteLine($"Logits (pre-softmax) for top {candidatesToShow.Count}:");
+
+    foreach (var candidate in candidatesToShow)
+    {
+        var displayedLogit = logitsFormat switch
+        {
+            LogitsDisplayFormat.Raw => candidate.Logit,
+            LogitsDisplayFormat.Centered => candidate.Logit - maxLogit,
+            LogitsDisplayFormat.Scaled => (candidate.Logit - maxLogit) / SafeTemperature(debugInfo.Temperature),
+            _ => candidate.Logit
+        };
+
+        Console.WriteLine($"  id={candidate.TokenId,-3} text={candidate.Text,-10} logit={displayedLogit,8:0.0000}");
+    }
+
+    if (logitsFormat == LogitsDisplayFormat.Centered)
+    {
+        Console.WriteLine("logit_centered = logit - max_logit (so best token is 0)");
+    }
+    else if (logitsFormat == LogitsDisplayFormat.Scaled)
+    {
+        Console.WriteLine("logit_scaled = (logit - max_logit) / temperature");
+    }
+}
+
+static float SafeTemperature(float temperature) => temperature <= 0f ? 1f : temperature;
+
 static void PrintHelp()
 {
     Console.WriteLine("MiniGPTSharp learning CLI");
     Console.WriteLine("Commands:");
+    Console.WriteLine("  generate --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain]");
+    Console.WriteLine("  step --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain] [--show-logits] [--logits-topn n] [--logits-format raw|centered|scaled]");
     Console.WriteLine("  predict --prompt \"The capital of France is\" [--topn N] [--temp T] [--topk K] [--deterministic]");
     Console.WriteLine("  learn attention|embeddings|sampling");
     Console.WriteLine("  --demo-sampling [--prompt text]");
-    Console.WriteLine("  --prompt text [--step] [--explain] [--temperature n] [--top-k n] [--layers n] [--max-new-tokens n] [--seed n] [--deterministic]");
+    Console.WriteLine("  --prompt text [--step] [--explain] [--temperature n] [--top-k n] [--layers n] [--tokens n] [--seed n] [--deterministic]");
     Console.WriteLine("Break-the-model flags:");
     Console.WriteLine("  --no-attention --no-position --no-layernorm");
+}
+
+enum LogitsDisplayFormat
+{
+    Raw,
+    Centered,
+    Scaled
 }
