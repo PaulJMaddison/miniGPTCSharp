@@ -78,10 +78,57 @@ static void RunGeneration(string[] args)
         return;
     }
 
+    if (explain)
+    {
+        RunNarratedGeneration(model, prompt, tokensRequested, seed, deterministic, showLogits, logitsTopN, logitsFormat);
+        return;
+    }
+
     var output = model.Generate(prompt, explain, tokensRequested, seed, deterministic);
 
     Console.WriteLine("\n=== Final Output ===");
     Console.WriteLine(output);
+}
+
+static void RunNarratedGeneration(
+    MiniGptModel model,
+    string prompt,
+    int tokensRequested,
+    int? seed,
+    bool deterministic,
+    bool showLogits,
+    int logitsTopN,
+    LogitsDisplayFormat logitsFormat)
+{
+    var tokens = model.Tokenizer.Encode(prompt);
+    Random? rng = deterministic ? null : seed.HasValue ? new Random(seed.Value) : new Random();
+
+    PrintPipelineIntro(prompt, tokens, model.Tokenizer, deterministic, seed);
+
+    for (var generated = 0; generated < tokensRequested; generated++)
+    {
+        var step = model.Step(
+            tokens,
+            model.Config.Temperature,
+            model.Config.TopK,
+            explain: true,
+            deterministic: deterministic,
+            samplingRandom: rng);
+
+        Console.WriteLine($"\n--- Generation Step {generated + 1} ---");
+        PrintNarratedStep(step.DebugInfo, deterministic, commandName: "generate");
+
+        if (showLogits)
+        {
+            PrintLogitsSection(step.DebugInfo, logitsTopN, logitsFormat);
+        }
+
+        tokens.Add(step.NextTokenId);
+        Console.WriteLine($"Text after step {generated + 1}: {model.Tokenizer.Decode(tokens)}");
+    }
+
+    Console.WriteLine("\n=== Final Output ===");
+    Console.WriteLine(model.Tokenizer.Decode(tokens));
 }
 
 static void RunStepMode(
@@ -102,6 +149,11 @@ static void RunStepMode(
     Console.WriteLine("Step mode: generating one token at a time.");
     Console.WriteLine($"Start text: {model.Tokenizer.Decode(tokens)}");
 
+    if (explain)
+    {
+        PrintPipelineIntro(prompt, tokens, model.Tokenizer, deterministic, seed);
+    }
+
     var newTokensToGenerate = tokensRequested;
     var generated = 0;
 
@@ -119,7 +171,7 @@ static void RunStepMode(
         if (explain && !string.IsNullOrWhiteSpace(step.DebugText))
         {
             Console.WriteLine($"\n--- Generation Step {generated + 1} ---");
-            PrintExplainStep(step.DebugInfo);
+            PrintNarratedStep(step.DebugInfo, deterministic, commandName: "step");
             if (showLogits)
             {
                 PrintLogitsSection(step.DebugInfo, logitsTopN, logitsFormat);
@@ -153,9 +205,21 @@ static void RunPredict(string[] args)
     var temperature = ParseFloat(GetOption(args, "--temp"), 1.0f);
     var topKFilter = ParseInt(GetOption(args, "--topk"), 0);
     var deterministic = args.Contains("--deterministic", StringComparer.OrdinalIgnoreCase);
+    var explain = args.Contains("--explain", StringComparer.OrdinalIgnoreCase);
 
     var model = new MiniGptModel();
     var predictions = model.PredictNextTokens(prompt, topN, temperature, topKFilter);
+    var tokens = model.Tokenizer.Encode(prompt);
+
+    if (explain)
+    {
+        PrintPipelineIntro(prompt, tokens, model.Tokenizer, deterministic, seed: null);
+
+        var explainTopK = topKFilter > 0 ? topKFilter : model.Tokenizer.Vocabulary.Count;
+        var decisionView = model.Step(tokens, temperature, explainTopK, explain: true, deterministic: deterministic, seed: 1234);
+        PrintNarratedStep(decisionView.DebugInfo, deterministic, commandName: "predict");
+        Console.WriteLine("In predict mode, we stop here and report probabilities instead of appending a token.");
+    }
 
     if (deterministic)
     {
@@ -259,20 +323,94 @@ static LogitsDisplayFormat ParseLogitsFormat(string? value)
     };
 }
 
-static void PrintExplainStep(StepDebugInfo debugInfo)
-{
-    Console.WriteLine($"Context tokens: {debugInfo.ContextTokenIds.Length}");
-    Console.WriteLine($"Sampling: temperature={debugInfo.Temperature:0.###}, top-k={debugInfo.TopK}");
-    Console.WriteLine("Logits are raw scores (higher = more likely). Softmax turns logits into probabilities.");
-    Console.WriteLine();
-    Console.WriteLine("Top candidates:");
 
+
+static void PrintPipelineIntro(string prompt, IReadOnlyList<int> tokens, VocabularyTokenizer tokenizer, bool deterministic, int? seed)
+{
+    Console.WriteLine("\n1) Input received");
+    Console.WriteLine($"The command received this prompt: \"{prompt}\".");
+    Console.WriteLine($"The current context contains {tokens.Count} token(s).");
+
+    Console.WriteLine("\n2) Tokenization");
+    Console.WriteLine($"Token pieces: [{string.Join(", ", tokenizer.SplitTokens(prompt))}]");
+    Console.WriteLine($"Token IDs: [{string.Join(", ", tokens)}]");
+    Console.WriteLine("-----------------------------------------");
+    Console.WriteLine("The model cannot process text directly.");
+    Console.WriteLine();
+    Console.WriteLine("Your prompt is split into smaller pieces");
+    Console.WriteLine("called tokens (words or sub-words).");
+    Console.WriteLine();
+    Console.WriteLine("Each token is converted into a number ID");
+    Console.WriteLine("that represents it in the vocabulary.");
+    Console.WriteLine();
+    Console.WriteLine("These IDs are what the model uses as input.");
+    Console.WriteLine("-----------------------------------------");
+
+    if (deterministic)
+    {
+        Console.WriteLine("Decision mode: deterministic argmax (no randomness).");
+    }
+    else if (seed.HasValue)
+    {
+        Console.WriteLine($"Decision mode: probabilistic sampling with random seed {seed.Value}.");
+    }
+    else
+    {
+        Console.WriteLine("Decision mode: probabilistic sampling with a fresh random seed.");
+    }
+}
+
+static void PrintNarratedStep(StepDebugInfo debugInfo, bool deterministic, string commandName)
+{
+    Console.WriteLine("3) Model forward pass");
+    Console.WriteLine("The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.");
+
+    Console.WriteLine("\n4) Logits produced");
+    Console.WriteLine("-----------------------------------------");
+    Console.WriteLine("The model has now produced a score for");
+    Console.WriteLine("every possible next token.");
+    Console.WriteLine();
+    Console.WriteLine("These scores are called logits.");
+    Console.WriteLine("Higher logits mean the model currently prefers that token more.");
+    Console.WriteLine("-----------------------------------------");
+
+    Console.WriteLine("\n5) Softmax → probabilities");
+    Console.WriteLine($"Softmax converts logits into probabilities that sum to 1.0 (temperature={debugInfo.Temperature:0.###}, top-k={debugInfo.TopK}).");
+
+    Console.WriteLine("\nTop candidates:");
     foreach (var candidate in debugInfo.Candidates)
     {
         Console.WriteLine($"  id={candidate.TokenId,-3} text={candidate.Text,-10} logit={candidate.Logit,8:0.0000}  p={candidate.Probability,7:P2}");
     }
 
+    Console.WriteLine("\n6) Sampling or argmax decision");
+    if (deterministic)
+    {
+        Console.WriteLine("Deterministic mode chooses the highest-probability token every time (argmax).");
+    }
+    else
+    {
+        Console.WriteLine("Sampling mode rolls randomness using the probability distribution.");
+        Console.WriteLine("Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.");
+    }
+
     Console.WriteLine($"Chosen token: id={debugInfo.Chosen.TokenId}, text={debugInfo.Chosen.Text}");
+
+    Console.WriteLine("\n7) Token appended");
+    if (commandName.Equals("predict", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine("Predict mode does not append the token; it only reports likely next tokens.");
+    }
+    else
+    {
+        Console.WriteLine("The chosen token is appended to the context so the model can use it on the next step.");
+    }
+
+    if (!commandName.Equals("predict", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine("\n8) Repeat");
+        Console.WriteLine($"The {commandName} command repeats this loop until it reaches the requested token count.");
+    }
 }
 
 static void PrintLogitsSection(StepDebugInfo debugInfo, int logitsTopN, LogitsDisplayFormat logitsFormat)
@@ -313,7 +451,7 @@ static void PrintHelp()
     Console.WriteLine("Commands:");
     Console.WriteLine("  generate --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain]");
     Console.WriteLine("  step --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain] [--show-logits] [--logits-topn n] [--logits-format raw|centered|scaled]");
-    Console.WriteLine("  predict --prompt \"The capital of France is\" [--topn N] [--temp T] [--topk K] [--deterministic]");
+    Console.WriteLine("  predict --prompt \"The capital of France is\" [--topn N] [--temp T] [--topk K] [--deterministic] [--explain]");
     Console.WriteLine("  learn attention|embeddings|sampling");
     Console.WriteLine("  --demo-sampling [--prompt text]");
     Console.WriteLine("  --prompt text [--step] [--explain] [--temperature n] [--top-k n] [--layers n] [--tokens n] [--seed n] [--deterministic]");
