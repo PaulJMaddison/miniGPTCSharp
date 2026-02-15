@@ -1,0 +1,1780 @@
+﻿MiniGPT Student Walkthrough - 2026-02-15 18:38:06
+RepoRoot : C:\MiniGPT
+CliProj  : C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj
+Config   : Release
+Output   : C:\MiniGPT\scripts\walkthrough-output.txt
+--- 0) Help / commands ---
+Look for:
+- predict / generate / step
+- --explain flag
+- sampling controls (seed, temperature, top-k)
+===== Help =====
+> dotnet run -c Release --project C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj -- --help
+MiniGPTSharp learning CLI
+Commands:
+  generate --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain]
+  step --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain] [--show-logits] [--logits-topn n] [--logits-format raw|centered|scaled]
+  predict --prompt "The capital of France is" [--topn N] [--temp T] [--topk K] [--deterministic] [--explain]
+  learn attention|embeddings|sampling
+Use --help or -h with any command for command-specific help.
+System.CommandLine-style directives such as [diagram] are accepted.
+Break-the-model flags:
+  --no-attention --no-position --no-layernorm
+--- 1) Predict (next-token probabilities + logits explanation) ---
+Goal:
+- See tokens + IDs
+- See logits -> probabilities
+- Notice the highest probability is NOT always the human "correct" answer
+===== Predict (top 5) =====
+> dotnet run -c Release --project C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj -- predict --prompt The capital of France is --topn 5 --explain
+
+1) Input received
+The command received this prompt: "The capital of France is".
+The current context contains 5 token(s).
+
+2) Tokenization
+Token pieces: [The, capital, of, France, is]
+Token IDs: [4, 12, 5, 11, 8]
+-----------------------------------------
+The model cannot process text directly.
+
+Your prompt is split into smaller pieces
+called tokens (words or sub-words).
+
+Each token is converted into a number ID
+that represents it in the vocabulary.
+
+These IDs are what the model uses as input.
+-----------------------------------------
+Decision mode: probabilistic sampling with a fresh random seed.
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=1, top-k=20).
+
+Top candidates:
+  id=12  text=capital    logit=  7.3097  p= 18.58%
+  id=11  text=France     logit=  7.1528  p= 15.89%
+  id=13  text=Paris      logit=  7.0536  p= 14.39%
+  id=14  text=AI         logit=  6.6602  p=  9.71%
+  id=19  text=learning   logit=  6.4924  p=  8.21%
+  id=10  text=it         logit=  6.4563  p=  7.92%
+  id=15  text=model      logit=  6.2616  p=  6.52%
+  id=18  text=token      logit=  6.1586  p=  5.88%
+  id=16  text=word       logit=  6.0048  p=  5.04%
+  id=17  text=next       logit=  5.9706  p=  4.87%
+  id=9   text=in         logit=  5.2781  p=  2.44%
+  id=8   text=is         logit=  3.6798  p=  0.49%
+  id=7   text=to         logit=  1.6743  p=  0.07%
+  id=6   text=and        logit= -0.3469  p=  0.01%
+  id=0   text=<pad>      logit= -1.7440  p=  0.00%
+  id=5   text=of         logit= -2.1052  p=  0.00%
+  id=1   text=<unk>      logit= -3.1722  p=  0.00%
+  id=4   text=the        logit= -3.4362  p=  0.00%
+  id=2   text=.          logit= -4.0244  p=  0.00%
+  id=3   text=,          logit= -4.1404  p=  0.00%
+
+6) Decision step: none (predict only reports probabilities)
+No token is chosen or appended in predict mode
+Prompt: "The capital of France is"
+Next-token predictions (top 5):
+  1) "capital" (id=12) p=0.19
+  2) "France" (id=11) p=0.16
+  3) "Paris" (id=13) p=0.14
+  4) "AI" (id=14) p=0.10
+  5) "learning" (id=19) p=0.08
+--- 2) Deterministic generate (argmax) ---
+Goal:
+- Greedy decoding: always pick the highest-probability token each step
+- Repeatable (no randomness)
+===== Generate deterministic =====
+> dotnet run -c Release --project C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj -- generate --prompt The capital of France is --tokens 8 --deterministic --explain
+Generation Mode: Deterministic (Greedy ArgMax)
+
+1) Input received
+The command received this prompt: "The capital of France is".
+The current context contains 5 token(s).
+
+2) Tokenization
+Token pieces: [The, capital, of, France, is]
+Token IDs: [4, 12, 5, 11, 8]
+-----------------------------------------
+The model cannot process text directly.
+
+Your prompt is split into smaller pieces
+called tokens (words or sub-words).
+
+Each token is converted into a number ID
+that represents it in the vocabulary.
+
+These IDs are what the model uses as input.
+-----------------------------------------
+Decision mode: deterministic argmax (no randomness).
+
+--- Generation Step 1 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=12  text=capital    logit=  7.3097  p= 19.16%
+  id=11  text=France     logit=  7.1528  p= 16.38%
+  id=13  text=Paris      logit=  7.0536  p= 14.83%
+  id=14  text=AI         logit=  6.6602  p= 10.01%
+  id=19  text=learning   logit=  6.4924  p=  8.46%
+  id=10  text=it         logit=  6.4563  p=  8.16%
+  id=15  text=model      logit=  6.2616  p=  6.72%
+  id=18  text=token      logit=  6.1586  p=  6.06%
+  id=16  text=word       logit=  6.0048  p=  5.20%
+  id=17  text=next       logit=  5.9706  p=  5.02%
+
+6) Sampling or argmax decision
+Deterministic mode chooses the highest-probability token every time (argmax).
+Chosen token: id=12, text=capital
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 1: the capital of France is capital
+
+--- Generation Step 2 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=13  text=Paris      logit=  6.8325  p= 28.92%
+  id=12  text=capital    logit=  6.6032  p= 22.99%
+  id=14  text=AI         logit=  6.5739  p= 22.33%
+  id=15  text=model      logit=  5.7728  p= 10.02%
+  id=11  text=France     logit=  5.6750  p=  9.09%
+  id=16  text=word       logit=  4.5572  p=  2.97%
+  id=10  text=it         logit=  4.3091  p=  2.32%
+  id=17  text=next       logit=  3.1234  p=  0.71%
+  id=9   text=in         logit=  2.7181  p=  0.47%
+  id=18  text=token      logit=  1.7083  p=  0.17%
+
+6) Sampling or argmax decision
+Deterministic mode chooses the highest-probability token every time (argmax).
+Chosen token: id=13, text=Paris
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 2: the capital of France is capital Paris
+
+--- Generation Step 3 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=15  text=model      logit=  6.9000  p= 31.71%
+  id=16  text=word       logit=  6.6662  p= 25.10%
+  id=14  text=AI         logit=  6.4490  p= 20.20%
+  id=17  text=next       logit=  5.7951  p= 10.50%
+  id=13  text=Paris      logit=  5.4269  p=  7.27%
+  id=18  text=token      logit=  4.4419  p=  2.71%
+  id=12  text=capital    logit=  3.9410  p=  1.64%
+  id=19  text=learning   logit=  2.8477  p=  0.55%
+  id=11  text=France     logit=  2.1098  p=  0.26%
+  id=10  text=it         logit=  0.2717  p=  0.04%
+
+6) Sampling or argmax decision
+Deterministic mode chooses the highest-probability token every time (argmax).
+Chosen token: id=15, text=model
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 3: the capital of France is capital Paris model
+
+--- Generation Step 4 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=17  text=next       logit=  6.9788  p= 29.61%
+  id=18  text=token      logit=  6.9495  p= 28.76%
+  id=16  text=word       logit=  6.4408  p= 17.29%
+  id=19  text=learning   logit=  6.3813  p= 16.29%
+  id=15  text=model      logit=  5.4326  p=  6.31%
+  id=14  text=AI         logit=  3.9187  p=  1.39%
+  id=13  text=Paris      logit=  2.2641  p=  0.27%
+  id=12  text=capital    logit=  0.5584  p=  0.05%
+  id=0   text=<pad>      logit= -0.3396  p=  0.02%
+  id=1   text=<unk>      logit= -0.7384  p=  0.01%
+
+6) Sampling or argmax decision
+Deterministic mode chooses the highest-probability token every time (argmax).
+Chosen token: id=17, text=next
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 4: the capital of France is capital Paris model next
+
+--- Generation Step 5 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=18  text=token      logit=  5.9423  p= 31.78%
+  id=17  text=next       logit=  5.8304  p= 28.41%
+  id=19  text=learning   logit=  5.5971  p= 22.50%
+  id=16  text=word       logit=  5.0318  p= 12.78%
+  id=15  text=model      logit=  3.7597  p=  3.58%
+  id=14  text=AI         logit=  1.9263  p=  0.57%
+  id=1   text=<unk>      logit=  0.2534  p=  0.11%
+  id=0   text=<pad>      logit=  0.2213  p=  0.10%
+  id=2   text=.          logit= -0.0473  p=  0.08%
+  id=13  text=Paris      logit= -0.0702  p=  0.08%
+
+6) Sampling or argmax decision
+Deterministic mode chooses the highest-probability token every time (argmax).
+Chosen token: id=18, text=token
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 5: the capital of France is capital Paris model next token
+
+--- Generation Step 6 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  5.0295  p= 41.32%
+  id=18  text=token      logit=  4.8280  p= 33.77%
+  id=17  text=next       logit=  4.1400  p= 16.98%
+  id=16  text=word       logit=  2.9543  p=  5.19%
+  id=15  text=model      logit=  1.4828  p=  1.19%
+  id=1   text=<unk>      logit=  0.4646  p=  0.43%
+  id=0   text=<pad>      logit=  0.3227  p=  0.37%
+  id=2   text=.          logit=  0.2845  p=  0.36%
+  id=3   text=,          logit= -0.2885  p=  0.20%
+  id=14  text=AI         logit= -0.3405  p=  0.19%
+
+6) Sampling or argmax decision
+Deterministic mode chooses the highest-probability token every time (argmax).
+Chosen token: id=19, text=learning
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 6: the capital of France is capital Paris model next token learning
+
+--- Generation Step 7 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  3.8925  p= 70.01%
+  id=18  text=token      logit=  2.5684  p= 18.62%
+  id=17  text=next       logit=  1.0539  p=  4.10%
+  id=0   text=<pad>      logit=  0.0289  p=  1.47%
+  id=1   text=<unk>      logit=  0.0119  p=  1.44%
+  id=2   text=.          logit= -0.0931  p=  1.30%
+  id=3   text=,          logit= -0.3201  p=  1.04%
+  id=16  text=word       logit= -0.5543  p=  0.82%
+  id=4   text=the        logit= -0.6403  p=  0.75%
+  id=5   text=of         logit= -1.1571  p=  0.45%
+
+6) Sampling or argmax decision
+Deterministic mode chooses the highest-probability token every time (argmax).
+Chosen token: id=19, text=learning
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 7: the capital of France is capital Paris model next token learning learning
+
+--- Generation Step 8 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  1.6718  p= 46.67%
+  id=18  text=token      logit= -0.0642  p=  8.22%
+  id=0   text=<pad>      logit= -0.2107  p=  7.10%
+  id=1   text=<unk>      logit= -0.3757  p=  6.02%
+  id=5   text=of         logit= -0.3949  p=  5.91%
+  id=4   text=the        logit= -0.4047  p=  5.85%
+  id=2   text=.          logit= -0.4661  p=  5.50%
+  id=3   text=,          logit= -0.4815  p=  5.42%
+  id=6   text=and        logit= -0.5244  p=  5.19%
+  id=7   text=to         logit= -0.7580  p=  4.11%
+
+6) Sampling or argmax decision
+Deterministic mode chooses the highest-probability token every time (argmax).
+Chosen token: id=19, text=learning
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 8: the capital of France is capital Paris model next token learning learning learning
+
+=== Final Output ===
+the capital of France is capital Paris model next token learning learning learning
+--- 3) Seeded sampling (repeatable randomness) ---
+Goal:
+- Sampling uses randomness, but a fixed seed makes it repeatable
+- Run twice with the same seed: identical output
+===== Generate seed=42 (run 1) =====
+> dotnet run -c Release --project C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj -- generate --prompt The capital of France is --tokens 8 --seed 42 --explain
+Random Seed: 42
+
+1) Input received
+The command received this prompt: "The capital of France is".
+The current context contains 5 token(s).
+
+2) Tokenization
+Token pieces: [The, capital, of, France, is]
+Token IDs: [4, 12, 5, 11, 8]
+-----------------------------------------
+The model cannot process text directly.
+
+Your prompt is split into smaller pieces
+called tokens (words or sub-words).
+
+Each token is converted into a number ID
+that represents it in the vocabulary.
+
+These IDs are what the model uses as input.
+-----------------------------------------
+Decision mode: probabilistic sampling with random seed 42.
+
+--- Generation Step 1 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=12  text=capital    logit=  7.3097  p= 21.80%
+  id=11  text=France     logit=  7.1528  p= 17.92%
+  id=13  text=Paris      logit=  7.0536  p= 15.83%
+  id=14  text=AI         logit=  6.6602  p=  9.68%
+  id=19  text=learning   logit=  6.4924  p=  7.85%
+  id=10  text=it         logit=  6.4563  p=  7.50%
+  id=15  text=model      logit=  6.2616  p=  5.88%
+  id=18  text=token      logit=  6.1586  p=  5.17%
+  id=16  text=word       logit=  6.0048  p=  4.27%
+  id=17  text=next       logit=  5.9706  p=  4.09%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=14, text=AI
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 1: the capital of France is AI
+
+--- Generation Step 2 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=13  text=Paris      logit=  6.7216  p= 24.26%
+  id=14  text=AI         logit=  6.6443  p= 22.03%
+  id=12  text=capital    logit=  6.5538  p= 19.67%
+  id=15  text=model      logit=  6.1926  p= 12.52%
+  id=11  text=France     logit=  5.9471  p=  9.21%
+  id=16  text=word       logit=  5.5976  p=  5.95%
+  id=10  text=it         logit=  4.8994  p=  2.49%
+  id=17  text=next       logit=  4.8870  p=  2.45%
+  id=18  text=token      logit=  4.1270  p=  0.95%
+  id=9   text=in         logit=  3.5607  p=  0.47%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=12, text=capital
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 2: the capital of France is AI capital
+
+--- Generation Step 3 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=15  text=model      logit=  6.5168  p= 34.88%
+  id=14  text=AI         logit=  6.3374  p= 27.87%
+  id=16  text=word       logit=  6.0708  p= 19.97%
+  id=13  text=Paris      logit=  5.4053  p=  8.69%
+  id=17  text=next       logit=  5.0468  p=  5.55%
+  id=12  text=capital    logit=  4.1019  p=  1.70%
+  id=18  text=token      logit=  3.6499  p=  0.97%
+  id=11  text=France     logit=  2.3367  p=  0.19%
+  id=19  text=learning   logit=  2.1594  p=  0.15%
+  id=10  text=it         logit=  0.5041  p=  0.02%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=14, text=AI
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 3: the capital of France is AI capital AI
+
+--- Generation Step 4 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=17  text=next       logit=  6.8368  p= 35.10%
+  id=16  text=word       logit=  6.5772  p= 25.38%
+  id=18  text=token      logit=  6.4664  p= 22.09%
+  id=15  text=model      logit=  5.7059  p=  8.54%
+  id=19  text=learning   logit=  5.5411  p=  6.95%
+  id=14  text=AI         logit=  4.4287  p=  1.73%
+  id=13  text=Paris      logit=  2.6198  p=  0.18%
+  id=12  text=capital    logit=  0.8919  p=  0.02%
+  id=0   text=<pad>      logit= -0.2988  p=  0.00%
+  id=1   text=<unk>      logit= -0.6691  p=  0.00%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=17, text=next
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 4: the capital of France is AI capital AI next
+
+--- Generation Step 5 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=18  text=token      logit=  5.8598  p= 33.81%
+  id=17  text=next       logit=  5.7804  p= 30.61%
+  id=19  text=learning   logit=  5.4873  p= 21.22%
+  id=16  text=word       logit=  5.0100  p= 11.69%
+  id=15  text=model      logit=  3.7044  p=  2.29%
+  id=14  text=AI         logit=  2.0225  p=  0.28%
+  id=1   text=<unk>      logit=  0.2915  p=  0.03%
+  id=0   text=<pad>      logit=  0.2437  p=  0.03%
+  id=2   text=.          logit= -0.0050  p=  0.02%
+  id=13  text=Paris      logit= -0.1368  p=  0.02%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=17, text=next
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 5: the capital of France is AI capital AI next next
+
+--- Generation Step 6 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  4.9182  p= 52.39%
+  id=18  text=token      logit=  4.4951  p= 30.87%
+  id=17  text=next       logit=  3.8026  p= 12.99%
+  id=16  text=word       logit=  2.5482  p=  2.71%
+  id=15  text=model      logit=  1.0951  p=  0.44%
+  id=1   text=<unk>      logit=  0.3471  p=  0.17%
+  id=0   text=<pad>      logit=  0.2527  p=  0.15%
+  id=2   text=.          logit=  0.1595  p=  0.14%
+  id=3   text=,          logit= -0.3716  p=  0.07%
+  id=14  text=AI         logit= -0.4384  p=  0.06%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=18, text=token
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 6: the capital of France is AI capital AI next next token
+
+--- Generation Step 7 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  3.5454  p= 70.33%
+  id=18  text=token      logit=  2.5469  p= 20.19%
+  id=17  text=next       logit=  1.3860  p=  4.73%
+  id=1   text=<unk>      logit=  0.1697  p=  1.03%
+  id=0   text=<pad>      logit=  0.1312  p=  0.99%
+  id=2   text=.          logit=  0.0398  p=  0.88%
+  id=16  text=word       logit= -0.0151  p=  0.82%
+  id=3   text=,          logit= -0.3027  p=  0.57%
+  id=4   text=the        logit= -0.8124  p=  0.30%
+  id=15  text=model      logit= -1.3197  p=  0.16%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=19, text=learning
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 7: the capital of France is AI capital AI next next token learning
+
+--- Generation Step 8 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  1.3250  p= 50.83%
+  id=0   text=<pad>      logit= -0.2468  p=  7.13%
+  id=18  text=token      logit= -0.3988  p=  5.89%
+  id=5   text=of         logit= -0.4088  p=  5.82%
+  id=1   text=<unk>      logit= -0.4406  p=  5.59%
+  id=4   text=the        logit= -0.4593  p=  5.46%
+  id=6   text=and        logit= -0.4843  p=  5.30%
+  id=2   text=.          logit= -0.5461  p=  4.90%
+  id=3   text=,          logit= -0.5588  p=  4.82%
+  id=7   text=to         logit= -0.6586  p=  4.26%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=19, text=learning
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 8: the capital of France is AI capital AI next next token learning learning
+
+=== Final Output ===
+the capital of France is AI capital AI next next token learning learning
+===== Generate seed=42 (run 2) =====
+> dotnet run -c Release --project C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj -- generate --prompt The capital of France is --tokens 8 --seed 42 --explain
+Random Seed: 42
+
+1) Input received
+The command received this prompt: "The capital of France is".
+The current context contains 5 token(s).
+
+2) Tokenization
+Token pieces: [The, capital, of, France, is]
+Token IDs: [4, 12, 5, 11, 8]
+-----------------------------------------
+The model cannot process text directly.
+
+Your prompt is split into smaller pieces
+called tokens (words or sub-words).
+
+Each token is converted into a number ID
+that represents it in the vocabulary.
+
+These IDs are what the model uses as input.
+-----------------------------------------
+Decision mode: probabilistic sampling with random seed 42.
+
+--- Generation Step 1 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=12  text=capital    logit=  7.3097  p= 21.80%
+  id=11  text=France     logit=  7.1528  p= 17.92%
+  id=13  text=Paris      logit=  7.0536  p= 15.83%
+  id=14  text=AI         logit=  6.6602  p=  9.68%
+  id=19  text=learning   logit=  6.4924  p=  7.85%
+  id=10  text=it         logit=  6.4563  p=  7.50%
+  id=15  text=model      logit=  6.2616  p=  5.88%
+  id=18  text=token      logit=  6.1586  p=  5.17%
+  id=16  text=word       logit=  6.0048  p=  4.27%
+  id=17  text=next       logit=  5.9706  p=  4.09%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=14, text=AI
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 1: the capital of France is AI
+
+--- Generation Step 2 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=13  text=Paris      logit=  6.7216  p= 24.26%
+  id=14  text=AI         logit=  6.6443  p= 22.03%
+  id=12  text=capital    logit=  6.5538  p= 19.67%
+  id=15  text=model      logit=  6.1926  p= 12.52%
+  id=11  text=France     logit=  5.9471  p=  9.21%
+  id=16  text=word       logit=  5.5976  p=  5.95%
+  id=10  text=it         logit=  4.8994  p=  2.49%
+  id=17  text=next       logit=  4.8870  p=  2.45%
+  id=18  text=token      logit=  4.1270  p=  0.95%
+  id=9   text=in         logit=  3.5607  p=  0.47%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=12, text=capital
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 2: the capital of France is AI capital
+
+--- Generation Step 3 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=15  text=model      logit=  6.5168  p= 34.88%
+  id=14  text=AI         logit=  6.3374  p= 27.87%
+  id=16  text=word       logit=  6.0708  p= 19.97%
+  id=13  text=Paris      logit=  5.4053  p=  8.69%
+  id=17  text=next       logit=  5.0468  p=  5.55%
+  id=12  text=capital    logit=  4.1019  p=  1.70%
+  id=18  text=token      logit=  3.6499  p=  0.97%
+  id=11  text=France     logit=  2.3367  p=  0.19%
+  id=19  text=learning   logit=  2.1594  p=  0.15%
+  id=10  text=it         logit=  0.5041  p=  0.02%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=14, text=AI
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 3: the capital of France is AI capital AI
+
+--- Generation Step 4 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=17  text=next       logit=  6.8368  p= 35.10%
+  id=16  text=word       logit=  6.5772  p= 25.38%
+  id=18  text=token      logit=  6.4664  p= 22.09%
+  id=15  text=model      logit=  5.7059  p=  8.54%
+  id=19  text=learning   logit=  5.5411  p=  6.95%
+  id=14  text=AI         logit=  4.4287  p=  1.73%
+  id=13  text=Paris      logit=  2.6198  p=  0.18%
+  id=12  text=capital    logit=  0.8919  p=  0.02%
+  id=0   text=<pad>      logit= -0.2988  p=  0.00%
+  id=1   text=<unk>      logit= -0.6691  p=  0.00%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=17, text=next
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 4: the capital of France is AI capital AI next
+
+--- Generation Step 5 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=18  text=token      logit=  5.8598  p= 33.81%
+  id=17  text=next       logit=  5.7804  p= 30.61%
+  id=19  text=learning   logit=  5.4873  p= 21.22%
+  id=16  text=word       logit=  5.0100  p= 11.69%
+  id=15  text=model      logit=  3.7044  p=  2.29%
+  id=14  text=AI         logit=  2.0225  p=  0.28%
+  id=1   text=<unk>      logit=  0.2915  p=  0.03%
+  id=0   text=<pad>      logit=  0.2437  p=  0.03%
+  id=2   text=.          logit= -0.0050  p=  0.02%
+  id=13  text=Paris      logit= -0.1368  p=  0.02%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=17, text=next
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 5: the capital of France is AI capital AI next next
+
+--- Generation Step 6 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  4.9182  p= 52.39%
+  id=18  text=token      logit=  4.4951  p= 30.87%
+  id=17  text=next       logit=  3.8026  p= 12.99%
+  id=16  text=word       logit=  2.5482  p=  2.71%
+  id=15  text=model      logit=  1.0951  p=  0.44%
+  id=1   text=<unk>      logit=  0.3471  p=  0.17%
+  id=0   text=<pad>      logit=  0.2527  p=  0.15%
+  id=2   text=.          logit=  0.1595  p=  0.14%
+  id=3   text=,          logit= -0.3716  p=  0.07%
+  id=14  text=AI         logit= -0.4384  p=  0.06%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=18, text=token
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 6: the capital of France is AI capital AI next next token
+
+--- Generation Step 7 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  3.5454  p= 70.33%
+  id=18  text=token      logit=  2.5469  p= 20.19%
+  id=17  text=next       logit=  1.3860  p=  4.73%
+  id=1   text=<unk>      logit=  0.1697  p=  1.03%
+  id=0   text=<pad>      logit=  0.1312  p=  0.99%
+  id=2   text=.          logit=  0.0398  p=  0.88%
+  id=16  text=word       logit= -0.0151  p=  0.82%
+  id=3   text=,          logit= -0.3027  p=  0.57%
+  id=4   text=the        logit= -0.8124  p=  0.30%
+  id=15  text=model      logit= -1.3197  p=  0.16%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=19, text=learning
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 7: the capital of France is AI capital AI next next token learning
+
+--- Generation Step 8 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  1.3250  p= 50.83%
+  id=0   text=<pad>      logit= -0.2468  p=  7.13%
+  id=18  text=token      logit= -0.3988  p=  5.89%
+  id=5   text=of         logit= -0.4088  p=  5.82%
+  id=1   text=<unk>      logit= -0.4406  p=  5.59%
+  id=4   text=the        logit= -0.4593  p=  5.46%
+  id=6   text=and        logit= -0.4843  p=  5.30%
+  id=2   text=.          logit= -0.5461  p=  4.90%
+  id=3   text=,          logit= -0.5588  p=  4.82%
+  id=7   text=to         logit= -0.6586  p=  4.26%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=19, text=learning
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 8: the capital of France is AI capital AI next next token learning learning
+
+=== Final Output ===
+the capital of France is AI capital AI next next token learning learning
+--- 4) Different seed (same distribution, different random draws) ---
+Goal:
+- Probabilities can be similar, but random draws differ
+- Different seed => often different text
+===== Generate seed=7 =====
+> dotnet run -c Release --project C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj -- generate --prompt The capital of France is --tokens 8 --seed 7 --explain
+Random Seed: 7
+
+1) Input received
+The command received this prompt: "The capital of France is".
+The current context contains 5 token(s).
+
+2) Tokenization
+Token pieces: [The, capital, of, France, is]
+Token IDs: [4, 12, 5, 11, 8]
+-----------------------------------------
+The model cannot process text directly.
+
+Your prompt is split into smaller pieces
+called tokens (words or sub-words).
+
+Each token is converted into a number ID
+that represents it in the vocabulary.
+
+These IDs are what the model uses as input.
+-----------------------------------------
+Decision mode: probabilistic sampling with random seed 7.
+
+--- Generation Step 1 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=12  text=capital    logit=  7.3097  p= 21.80%
+  id=11  text=France     logit=  7.1528  p= 17.92%
+  id=13  text=Paris      logit=  7.0536  p= 15.83%
+  id=14  text=AI         logit=  6.6602  p=  9.68%
+  id=19  text=learning   logit=  6.4924  p=  7.85%
+  id=10  text=it         logit=  6.4563  p=  7.50%
+  id=15  text=model      logit=  6.2616  p=  5.88%
+  id=18  text=token      logit=  6.1586  p=  5.17%
+  id=16  text=word       logit=  6.0048  p=  4.27%
+  id=17  text=next       logit=  5.9706  p=  4.09%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=12, text=capital
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 1: the capital of France is capital
+
+--- Generation Step 2 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=13  text=Paris      logit=  6.8325  p= 32.32%
+  id=12  text=capital    logit=  6.6032  p= 24.27%
+  id=14  text=AI         logit=  6.5739  p= 23.40%
+  id=15  text=model      logit=  5.7728  p=  8.59%
+  id=11  text=France     logit=  5.6750  p=  7.61%
+  id=16  text=word       logit=  4.5572  p=  1.88%
+  id=10  text=it         logit=  4.3091  p=  1.38%
+  id=17  text=next       logit=  3.1234  p=  0.31%
+  id=9   text=in         logit=  2.7181  p=  0.19%
+  id=18  text=token      logit=  1.7083  p=  0.05%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=14, text=AI
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 2: the capital of France is capital AI
+
+--- Generation Step 3 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=16  text=word       logit=  6.9166  p= 30.45%
+  id=15  text=model      logit=  6.7566  p= 24.93%
+  id=17  text=next       logit=  6.5761  p= 19.89%
+  id=14  text=AI         logit=  6.1603  p= 11.83%
+  id=18  text=token      logit=  5.7861  p=  7.41%
+  id=13  text=Paris      logit=  5.0507  p=  2.96%
+  id=19  text=learning   logit=  4.6587  p=  1.81%
+  id=12  text=capital    logit=  3.7966  p=  0.62%
+  id=11  text=France     logit=  2.2429  p=  0.09%
+  id=10  text=it         logit=  0.6897  p=  0.01%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=16, text=word
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 3: the capital of France is capital AI word
+
+--- Generation Step 4 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=17  text=next       logit=  6.7905  p= 32.10%
+  id=18  text=token      logit=  6.6268  p= 26.16%
+  id=16  text=word       logit=  6.4743  p= 21.62%
+  id=19  text=learning   logit=  6.0081  p= 12.07%
+  id=15  text=model      logit=  5.5251  p=  6.60%
+  id=14  text=AI         logit=  4.2169  p=  1.29%
+  id=13  text=Paris      logit=  2.4917  p=  0.15%
+  id=12  text=capital    logit=  0.7885  p=  0.02%
+  id=0   text=<pad>      logit= -0.2892  p=  0.00%
+  id=1   text=<unk>      logit= -0.6596  p=  0.00%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=15, text=model
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 4: the capital of France is capital AI word model
+
+--- Generation Step 5 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  6.6000  p= 41.58%
+  id=18  text=token      logit=  6.5110  p= 37.20%
+  id=17  text=next       logit=  5.8559  p= 16.41%
+  id=16  text=word       logit=  4.7479  p=  4.11%
+  id=15  text=model      logit=  3.2129  p=  0.60%
+  id=14  text=AI         logit=  1.4709  p=  0.07%
+  id=0   text=<pad>      logit= -0.1002  p=  0.01%
+  id=1   text=<unk>      logit= -0.2845  p=  0.01%
+  id=13  text=Paris      logit= -0.3385  p=  0.01%
+  id=2   text=.          logit= -0.6175  p=  0.01%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=18, text=token
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 5: the capital of France is capital AI word model token
+
+--- Generation Step 6 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  5.2715  p= 51.01%
+  id=18  text=token      logit=  4.9473  p= 34.01%
+  id=17  text=next       logit=  4.0869  p= 11.60%
+  id=16  text=word       logit=  2.9038  p=  2.64%
+  id=15  text=model      logit=  1.3286  p=  0.37%
+  id=1   text=<unk>      logit=  0.3478  p=  0.11%
+  id=0   text=<pad>      logit=  0.2549  p=  0.10%
+  id=2   text=.          logit=  0.1513  p=  0.08%
+  id=3   text=,          logit= -0.3994  p=  0.04%
+  id=14  text=AI         logit= -0.4470  p=  0.04%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=19, text=learning
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 6: the capital of France is capital AI word model token learning
+
+--- Generation Step 7 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  3.9102  p= 80.91%
+  id=18  text=token      logit=  2.5270  p= 14.36%
+  id=17  text=next       logit=  0.9093  p=  1.90%
+  id=0   text=<pad>      logit=  0.0053  p=  0.61%
+  id=1   text=<unk>      logit= -0.0262  p=  0.59%
+  id=2   text=.          logit= -0.1301  p=  0.52%
+  id=3   text=,          logit= -0.3379  p=  0.40%
+  id=4   text=the        logit= -0.6231  p=  0.28%
+  id=16  text=word       logit= -0.6345  p=  0.28%
+  id=5   text=of         logit= -1.0957  p=  0.16%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=17, text=next
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 7: the capital of France is capital AI word model token learning next
+
+--- Generation Step 8 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=19  text=learning   logit=  1.0397  p= 45.94%
+  id=0   text=<pad>      logit= -0.2664  p=  8.98%
+  id=1   text=<unk>      logit= -0.4876  p=  6.81%
+  id=5   text=of         logit= -0.6068  p=  5.87%
+  id=2   text=.          logit= -0.6319  p=  5.69%
+  id=4   text=the        logit= -0.6344  p=  5.67%
+  id=18  text=token      logit= -0.6394  p=  5.63%
+  id=6   text=and        logit= -0.6691  p=  5.43%
+  id=3   text=,          logit= -0.6910  p=  5.28%
+  id=7   text=to         logit= -0.7833  p=  4.71%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=19, text=learning
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The generate command repeats this loop until it reaches the requested token count.
+Text after step 8: the capital of France is capital AI word model token learning next learning
+
+=== Final Output ===
+the capital of France is capital AI word model token learning next learning
+--- 5) Step mode (token-by-token teaching loop) ---
+Goal:
+- Watch the core GPT loop:
+  1) forward pass -> logits
+  2) softmax -> probabilities
+  3) pick a token (argmax or sampling)
+  4) append it
+  5) repeat
+===== Step mode (seed=42) =====
+> dotnet run -c Release --project C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj -- step --prompt The capital of France is --tokens 5 --seed 42 --explain --show-logits --logits-topn 10 --logits-format raw
+Random Seed: 42
+Step mode: generating one token at a time.
+Start text: the capital of France is
+
+1) Input received
+The command received this prompt: "The capital of France is".
+The current context contains 5 token(s).
+
+2) Tokenization
+Token pieces: [The, capital, of, France, is]
+Token IDs: [4, 12, 5, 11, 8]
+-----------------------------------------
+The model cannot process text directly.
+
+Your prompt is split into smaller pieces
+called tokens (words or sub-words).
+
+Each token is converted into a number ID
+that represents it in the vocabulary.
+
+These IDs are what the model uses as input.
+-----------------------------------------
+Decision mode: probabilistic sampling with random seed 42.
+
+--- Generation Step 1 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=12  text=capital    logit=  7.3097  p= 21.80%
+  id=11  text=France     logit=  7.1528  p= 17.92%
+  id=13  text=Paris      logit=  7.0536  p= 15.83%
+  id=14  text=AI         logit=  6.6602  p=  9.68%
+  id=19  text=learning   logit=  6.4924  p=  7.85%
+  id=10  text=it         logit=  6.4563  p=  7.50%
+  id=15  text=model      logit=  6.2616  p=  5.88%
+  id=18  text=token      logit=  6.1586  p=  5.17%
+  id=16  text=word       logit=  6.0048  p=  4.27%
+  id=17  text=next       logit=  5.9706  p=  4.09%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=14, text=AI
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The step command repeats this loop until it reaches the requested token count.
+
+Logits (pre-softmax) for top 10:
+  id=12  text=capital    logit=  7.3097
+  id=11  text=France     logit=  7.1528
+  id=13  text=Paris      logit=  7.0536
+  id=14  text=AI         logit=  6.6602
+  id=19  text=learning   logit=  6.4924
+  id=10  text=it         logit=  6.4563
+  id=15  text=model      logit=  6.2616
+  id=18  text=token      logit=  6.1586
+  id=16  text=word       logit=  6.0048
+  id=17  text=next       logit=  5.9706
+Text after step 1: the capital of France is AI
+
+--- Generation Step 2 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=13  text=Paris      logit=  6.7216  p= 24.26%
+  id=14  text=AI         logit=  6.6443  p= 22.03%
+  id=12  text=capital    logit=  6.5538  p= 19.67%
+  id=15  text=model      logit=  6.1926  p= 12.52%
+  id=11  text=France     logit=  5.9471  p=  9.21%
+  id=16  text=word       logit=  5.5976  p=  5.95%
+  id=10  text=it         logit=  4.8994  p=  2.49%
+  id=17  text=next       logit=  4.8870  p=  2.45%
+  id=18  text=token      logit=  4.1270  p=  0.95%
+  id=9   text=in         logit=  3.5607  p=  0.47%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=12, text=capital
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The step command repeats this loop until it reaches the requested token count.
+
+Logits (pre-softmax) for top 10:
+  id=13  text=Paris      logit=  6.7216
+  id=14  text=AI         logit=  6.6443
+  id=12  text=capital    logit=  6.5538
+  id=15  text=model      logit=  6.1926
+  id=11  text=France     logit=  5.9471
+  id=16  text=word       logit=  5.5976
+  id=10  text=it         logit=  4.8994
+  id=17  text=next       logit=  4.8870
+  id=18  text=token      logit=  4.1270
+  id=9   text=in         logit=  3.5607
+Text after step 2: the capital of France is AI capital
+
+--- Generation Step 3 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=15  text=model      logit=  6.5168  p= 34.88%
+  id=14  text=AI         logit=  6.3374  p= 27.87%
+  id=16  text=word       logit=  6.0708  p= 19.97%
+  id=13  text=Paris      logit=  5.4053  p=  8.69%
+  id=17  text=next       logit=  5.0468  p=  5.55%
+  id=12  text=capital    logit=  4.1019  p=  1.70%
+  id=18  text=token      logit=  3.6499  p=  0.97%
+  id=11  text=France     logit=  2.3367  p=  0.19%
+  id=19  text=learning   logit=  2.1594  p=  0.15%
+  id=10  text=it         logit=  0.5041  p=  0.02%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=14, text=AI
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The step command repeats this loop until it reaches the requested token count.
+
+Logits (pre-softmax) for top 10:
+  id=15  text=model      logit=  6.5168
+  id=14  text=AI         logit=  6.3374
+  id=16  text=word       logit=  6.0708
+  id=13  text=Paris      logit=  5.4053
+  id=17  text=next       logit=  5.0468
+  id=12  text=capital    logit=  4.1019
+  id=18  text=token      logit=  3.6499
+  id=11  text=France     logit=  2.3367
+  id=19  text=learning   logit=  2.1594
+  id=10  text=it         logit=  0.5041
+Text after step 3: the capital of France is AI capital AI
+
+--- Generation Step 4 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=17  text=next       logit=  6.8368  p= 35.10%
+  id=16  text=word       logit=  6.5772  p= 25.38%
+  id=18  text=token      logit=  6.4664  p= 22.09%
+  id=15  text=model      logit=  5.7059  p=  8.54%
+  id=19  text=learning   logit=  5.5411  p=  6.95%
+  id=14  text=AI         logit=  4.4287  p=  1.73%
+  id=13  text=Paris      logit=  2.6198  p=  0.18%
+  id=12  text=capital    logit=  0.8919  p=  0.02%
+  id=0   text=<pad>      logit= -0.2988  p=  0.00%
+  id=1   text=<unk>      logit= -0.6691  p=  0.00%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=17, text=next
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The step command repeats this loop until it reaches the requested token count.
+
+Logits (pre-softmax) for top 10:
+  id=17  text=next       logit=  6.8368
+  id=16  text=word       logit=  6.5772
+  id=18  text=token      logit=  6.4664
+  id=15  text=model      logit=  5.7059
+  id=19  text=learning   logit=  5.5411
+  id=14  text=AI         logit=  4.4287
+  id=13  text=Paris      logit=  2.6198
+  id=12  text=capital    logit=  0.8919
+  id=0   text=<pad>      logit= -0.2988
+  id=1   text=<unk>      logit= -0.6691
+Text after step 4: the capital of France is AI capital AI next
+
+--- Generation Step 5 ---
+3) Model forward pass
+The model runs the token IDs through embeddings and transformer layers to build a context-aware internal state.
+
+4) Logits produced
+-----------------------------------------
+The model has now produced a score for
+every possible next token.
+
+These scores are called logits.
+Higher logits mean the model currently prefers that token more.
+-----------------------------------------
+
+5) Softmax → probabilities
+Softmax converts logits into probabilities that sum to 1.0 (temperature=0.8, top-k=10).
+
+Top candidates:
+  id=18  text=token      logit=  5.8598  p= 33.81%
+  id=17  text=next       logit=  5.7804  p= 30.61%
+  id=19  text=learning   logit=  5.4873  p= 21.22%
+  id=16  text=word       logit=  5.0100  p= 11.69%
+  id=15  text=model      logit=  3.7044  p=  2.29%
+  id=14  text=AI         logit=  2.0225  p=  0.28%
+  id=1   text=<unk>      logit=  0.2915  p=  0.03%
+  id=0   text=<pad>      logit=  0.2437  p=  0.03%
+  id=2   text=.          logit= -0.0050  p=  0.02%
+  id=13  text=Paris      logit= -0.1368  p=  0.02%
+
+6) Sampling or argmax decision
+Sampling mode rolls randomness using the probability distribution.
+Higher-probability tokens are more likely, but lower-probability tokens can still be chosen.
+Chosen token: id=17, text=next
+
+7) Token appended
+The chosen token is appended to the context so the model can use it on the next step.
+
+8) Repeat
+The step command repeats this loop until it reaches the requested token count.
+
+Logits (pre-softmax) for top 10:
+  id=18  text=token      logit=  5.8598
+  id=17  text=next       logit=  5.7804
+  id=19  text=learning   logit=  5.4873
+  id=16  text=word       logit=  5.0100
+  id=15  text=model      logit=  3.7044
+  id=14  text=AI         logit=  2.0225
+  id=1   text=<unk>      logit=  0.2915
+  id=0   text=<pad>      logit=  0.2437
+  id=2   text=.          logit= -0.0050
+  id=13  text=Paris      logit= -0.1368
+Text after step 5: the capital of France is AI capital AI next next
+
+=== Final Output ===
+the capital of France is AI capital AI next next
+Done [OK]

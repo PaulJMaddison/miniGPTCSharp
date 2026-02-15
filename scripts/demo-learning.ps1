@@ -7,8 +7,8 @@ param(
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = "Stop"
 
-function Run([string[]]$args) {
-  $cmd = @("dotnet","run","-c",$Config,"--project",$CliProj,"--") + $args
+function Run([string[]]$cliArgs) {
+  $cmd = @("dotnet","run","-c",$Config,"--project",$CliProj,"--") + $cliArgs
   Write-Host "`n> $($cmd -join ' ')" -ForegroundColor Cyan
   & $cmd[0] $cmd[1..($cmd.Count-1)]
   if ($LASTEXITCODE -ne 0) { throw "Command failed." }
@@ -19,7 +19,7 @@ function Pause($title, $whatToLookFor) {
   if ($whatToLookFor) {
     Write-Host $whatToLookFor -ForegroundColor DarkGray
   }
-  Read-Host "Press Enter to continue"
+  Read-Host "Press Enter to continue" | Out-Null
 }
 
 Pause "0) Help / commands" @"
@@ -70,3 +70,4 @@ This is the GPT loop: predict next token, append, repeat.
 Run @("step","--prompt","The capital of France is","--tokens","5","--seed","42","--explain")
 
 Write-Host "`nDone [OK]" -ForegroundColor Green
+
