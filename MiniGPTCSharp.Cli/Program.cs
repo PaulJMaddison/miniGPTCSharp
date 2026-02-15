@@ -1,16 +1,16 @@
 using MiniGPTCSharp;
 
-if (args.Length == 0)
+if (args.Length == 0 || HasHelpFlag(args))
 {
     PrintHelp();
+    Environment.ExitCode = 0;
     return;
 }
 
-if (args.Contains("--help", StringComparer.OrdinalIgnoreCase)
-    || args.Contains("-h", StringComparer.OrdinalIgnoreCase)
-    || args[0].Equals("help", StringComparison.OrdinalIgnoreCase))
+if (args[0].Equals("help", StringComparison.OrdinalIgnoreCase))
 {
     PrintHelp();
+    Environment.ExitCode = 0;
     return;
 }
 
@@ -307,6 +307,10 @@ static string? GetOption(string[] args, string option)
 
     return null;
 }
+
+static bool HasHelpFlag(string[] args)
+    => args.Contains("--help", StringComparer.OrdinalIgnoreCase)
+       || args.Contains("-h", StringComparer.OrdinalIgnoreCase);
 
 static int ParseInt(string? value, int fallback) => int.TryParse(value, out var parsed) ? parsed : fallback;
 
