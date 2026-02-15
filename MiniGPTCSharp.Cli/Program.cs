@@ -12,6 +12,18 @@ if (args[0].Equals("predict", StringComparison.OrdinalIgnoreCase))
     return;
 }
 
+if (args[0].Equals("generate", StringComparison.OrdinalIgnoreCase))
+{
+    RunGeneration(args[1..]);
+    return;
+}
+
+if (args[0].Equals("step", StringComparison.OrdinalIgnoreCase))
+{
+    RunGeneration(["--step", .. args[1..]]);
+    return;
+}
+
 if (args[0].Equals("learn", StringComparison.OrdinalIgnoreCase) && args.Length > 1)
 {
     RunLearnMode(args[1]);
@@ -45,7 +57,7 @@ static void RunGeneration(string[] args)
         DisableLayerNorm = args.Contains("--no-layernorm", StringComparer.OrdinalIgnoreCase)
     };
 
-    var maxNewTokens = ParseInt(GetOption(args, "--max-new-tokens"), 8);
+    var tokensRequested = ParseInt(GetOption(args, "--tokens") ?? GetOption(args, "--max-new-tokens"), 8);
     var model = new MiniGptModel(config);
 
     if (deterministic)
@@ -59,11 +71,11 @@ static void RunGeneration(string[] args)
 
     if (stepMode)
     {
-        RunStepMode(model, prompt, maxNewTokens, explain, seed, deterministic);
+        RunStepMode(model, prompt, tokensRequested, explain, seed, deterministic);
         return;
     }
 
-    var output = model.Generate(prompt, explain, maxNewTokens, seed, deterministic);
+    var output = model.Generate(prompt, explain, tokensRequested, seed, deterministic);
 
     Console.WriteLine("\n=== Final Output ===");
     Console.WriteLine(output);
@@ -72,7 +84,7 @@ static void RunGeneration(string[] args)
 static void RunStepMode(
     MiniGptModel model,
     string prompt,
-    int maxNewTokens,
+    int tokensRequested,
     bool explain,
     int? seed,
     bool deterministic)
@@ -84,7 +96,10 @@ static void RunStepMode(
     Console.WriteLine("Step mode: generating one token at a time.");
     Console.WriteLine($"Start text: {model.Tokenizer.Decode(tokens)}");
 
-    for (var i = 0; i < maxNewTokens; i++)
+    var newTokensToGenerate = tokensRequested;
+    var generated = 0;
+
+    while (generated < newTokensToGenerate)
     {
         var step = model.Step(
             tokens,
@@ -97,11 +112,12 @@ static void RunStepMode(
 
         if (explain && !string.IsNullOrWhiteSpace(step.DebugText))
         {
-            Console.WriteLine($"\n--- Step {i + 1} ---");
+            Console.WriteLine($"\n--- Generation Step {generated + 1} ---");
             Console.Write(step.DebugText);
         }
 
-        Console.WriteLine($"Text after step {i + 1}: {model.Tokenizer.Decode(tokens)}");
+        Console.WriteLine($"Text after step {generated + 1}: {model.Tokenizer.Decode(tokens)}");
+        generated++;
     }
 
     Console.WriteLine("\n=== Final Output ===");
@@ -173,13 +189,13 @@ static void RunLearnMode(string topic)
         case "attention":
             Console.WriteLine("Learning mode: attention");
             Console.WriteLine("We will run one generation step and show which earlier tokens the model focuses on.");
-            RunGeneration(new[] { "--prompt", "The capital of France is", "--explain", "--max-new-tokens", "1" });
+            RunGeneration(new[] { "--prompt", "The capital of France is", "--explain", "--tokens", "1" });
             break;
 
         case "embeddings":
             Console.WriteLine("Learning mode: embeddings");
             Console.WriteLine("Embeddings convert token IDs into vectors that the model can compare mathematically.");
-            RunGeneration(new[] { "--prompt", "AI model learning", "--explain", "--layers", "0", "--max-new-tokens", "1" });
+            RunGeneration(new[] { "--prompt", "AI model learning", "--explain", "--layers", "0", "--tokens", "1" });
             break;
 
         case "sampling":
@@ -216,10 +232,12 @@ static void PrintHelp()
 {
     Console.WriteLine("MiniGPTSharp learning CLI");
     Console.WriteLine("Commands:");
+    Console.WriteLine("  generate --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain]");
+    Console.WriteLine("  step --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain]");
     Console.WriteLine("  predict --prompt \"The capital of France is\" [--topn N] [--temp T] [--topk K] [--deterministic]");
     Console.WriteLine("  learn attention|embeddings|sampling");
     Console.WriteLine("  --demo-sampling [--prompt text]");
-    Console.WriteLine("  --prompt text [--step] [--explain] [--temperature n] [--top-k n] [--layers n] [--max-new-tokens n] [--seed n] [--deterministic]");
+    Console.WriteLine("  --prompt text [--step] [--explain] [--temperature n] [--top-k n] [--layers n] [--tokens n] [--seed n] [--deterministic]");
     Console.WriteLine("Break-the-model flags:");
     Console.WriteLine("  --no-attention --no-position --no-layernorm");
 }
