@@ -1,5 +1,15 @@
 # MiniGPTSharp
 
+## Student walkthrough script
+
+Students can run a guided walkthrough that prints live output and saves the full session to `walkthrough-output.txt`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\student-walkthrough.ps1
+```
+
+By default, the script writes to `C:\MiniGPT\walkthrough-output.txt`. You can override paths with parameters like `-RepoRoot`, `-CliProj`, and `-OutputPath`.
+
 ## Learning Walkthrough (5 minutes)
 
 This mini-lab is for beginner C# developers who want to see how GPT-style generation works with real CLI output.
