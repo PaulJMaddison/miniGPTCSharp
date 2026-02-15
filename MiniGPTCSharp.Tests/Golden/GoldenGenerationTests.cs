@@ -1,53 +1,46 @@
 using MiniGPTCSharp;
-using Xunit.Abstractions;
 
 namespace MiniGPTCSharp.Tests.Golden;
 
-public class GoldenGenerationTests
+public static class GoldenGenerationTests
 {
-    private readonly ITestOutputHelper _output;
-
-    public GoldenGenerationTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
-
-    public static IEnumerable<object[]> Cases =>
+    public static IReadOnlyList<GoldenGenerationTestCase> Cases =>
     [
-        [new GoldenGenerationTestCase
+        new GoldenGenerationTestCase
         {
             Prompt = "Hello my name is",
             Seed = 42,
             Tokens = 12,
             Deterministic = true,
             ExpectedOutput = "Hello my name is name France Paris word next token learning name name name name it"
-        }],
-        [new GoldenGenerationTestCase
+        },
+        new GoldenGenerationTestCase
         {
             Prompt = "The capital of France is",
             Seed = 42,
             Tokens = 12,
             Deterministic = true,
             ExpectedOutput = "the capital of France is capital Paris model next token learning learning learning to next capital AI"
-        }],
-        [new GoldenGenerationTestCase
+        },
+        new GoldenGenerationTestCase
         {
             Prompt = "Once upon a time",
             Seed = 42,
             Tokens = 12,
             Deterministic = true,
             ExpectedOutput = "Once upon a time France France capital model token token learning a time time time France"
-        }]
+        }
     ];
 
-    [Theory]
-    [MemberData(nameof(Cases))]
-    public void Generate_DeterministicGoldenOutput_MatchesBaseline(GoldenGenerationTestCase testCase)
+    public static void RunAll()
     {
-        RunGoldenTest(testCase);
+        foreach (var testCase in Cases)
+        {
+            RunGoldenTest(testCase);
+        }
     }
 
-    private void RunGoldenTest(GoldenGenerationTestCase testCase)
+    private static void RunGoldenTest(GoldenGenerationTestCase testCase)
     {
         var model = new MiniGptModel();
 
@@ -58,13 +51,17 @@ public class GoldenGenerationTests
             seed: testCase.Seed,
             deterministic: testCase.Deterministic);
 
-        if (!string.Equals(testCase.ExpectedOutput, actual, StringComparison.Ordinal))
+        if (string.Equals(testCase.ExpectedOutput, actual, StringComparison.Ordinal))
         {
-            _output.WriteLine($"Prompt: {testCase.Prompt}");
-            _output.WriteLine($"Expected: {testCase.ExpectedOutput}");
-            _output.WriteLine($"Actual:   {actual}");
+            Console.WriteLine($"PASS: {testCase.Prompt}");
+            return;
         }
 
-        Assert.Equal(testCase.ExpectedOutput, actual);
+        var message =
+            $"FAIL: Golden output mismatch for prompt '{testCase.Prompt}'.{Environment.NewLine}" +
+            $"Expected: {testCase.ExpectedOutput}{Environment.NewLine}" +
+            $"Actual:   {actual}";
+
+        throw new InvalidOperationException(message);
     }
 }
