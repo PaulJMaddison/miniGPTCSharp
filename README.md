@@ -10,6 +10,23 @@ This mini-lab is for beginner C# developers who want to see how GPT-style genera
 - **Temperature** changes randomness (lower = safer/more focused, higher = more varied).
 - **Top-k** limits sampling to only the K highest-scoring tokens.
 
+> ✅ Key idea:
+> This callout highlights the core concept for a section.
+>
+> 👀 What to notice:
+> This points out the exact behavior to watch in command output.
+>
+> ⚠️ Common confusion:
+> This flags beginner traps that are easy to misread the first time.
+>
+> 🧪 Try it:
+> This gives a small command-driven check you can run immediately.
+>
+> 🛠️ If your output differs:
+> Use this to quickly troubleshoot setup or expectation mismatches.
+
+These callouts appear throughout the walkthrough to make key learning moments easier to spot while you run each command.
+
 ### 1) Set a CLI path variable
 
 ```powershell
@@ -21,6 +38,10 @@ What to look for:
 - Commands stay short and easier to read.
 
 Concept: **repeatable command setup** for quick experiments.
+
+> ✅ Key idea:
+> Set `$cli` once, then reuse it everywhere.
+> This keeps experiments repeatable and reduces copy/paste mistakes.
 
 ### 2) Run CLI help
 
@@ -34,10 +55,24 @@ What to look for:
 
 Concept: **what controls generation behavior**.
 
+> 👀 What to notice:
+> `predict` shows probabilities only.
+> `generate` and `step` are where token selection and randomness happen.
+
 ### 3) Run `predict`
 
 ```powershell
 dotnet run -c Release --project $cli -- predict --prompt "The capital of France is" --topn 5
+```
+
+Example output (your probabilities may differ):
+
+```text
+1. capital   p=0.34
+2. Paris     p=0.21
+3. city      p=0.11
+4. the       p=0.08
+5. and       p=0.05
 ```
 
 What to look for:
@@ -45,6 +80,15 @@ What to look for:
 - Each candidate's probability.
 
 Concept: **the model predicts a probability distribution, not one fixed token**.
+
+> ✅ Key idea:
+> `predict` shows the model's belief distribution over next tokens.
+> It does not choose or generate a token.
+
+> ⚠️ Common confusion:
+> `predict` does not use randomness; it reports probabilities from one forward pass.
+> It is showing belief distribution, not facts or logical reasoning.
+> Think IntelliSense/autocomplete: likely suggestions from patterns, not guaranteed truth.
 
 ## Why isn't 'Paris' the top prediction?
 
@@ -67,6 +111,10 @@ Think of it like IntelliSense/autocomplete in C#: suggestions are based on learn
 
 Also important: `predict` does **not** sample. There is no randomness there. Seed, temperature, and top-k do not apply to `predict` output.
 
+> 👀 What to notice:
+> If `capital` ranks above `Paris`, read that as a pattern signal from training.
+> Treat rankings as "what this model expects next," not "what is objectively correct."
+
 > [!TIP]
 > ### Mental model
 > - **Predict = what the model believes** (top probabilities)
@@ -85,15 +133,30 @@ Use these exact commands:
 ```powershell
 $cli="C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
 dotnet run -c Release --project $cli -- predict --prompt "The capital of France is" --topn 5
+```
+
+> 👀 What to notice:
+> The ranking can feel wrong, but it reflects training patterns in this model.
+
+```powershell
 dotnet run -c Release --project $cli -- generate --prompt "The capital of France is" --tokens 10 --deterministic
+```
+
+> 👀 What to notice:
+> Deterministic mode always picks the #1 token at each step (argmax).
+
+```powershell
 dotnet run -c Release --project $cli -- step --prompt "The capital of France is" --tokens 5 --seed 42 --explain
 ```
 
-What to notice:
+> 👀 What to notice:
+> Seeded sampling can pick non-#1 tokens.
+> With the same seed, that sampled path stays reproducible.
 
-- `predict`: "capital" can be #1 even if it feels wrong.
-- `generate --deterministic`: always picks the #1 token at each step.
-- `step --seed 42 --explain`: sampling can pick a token that is not #1, because lower-ranked tokens can still have some probability.
+> 🛠️ If your output differs:
+> Use `-c Release` for all runs.
+> Verify `--deterministic` and `--seed` flags match the examples.
+> Different model weights or training data can change token rankings.
 
 ### So how do we make Paris #1?
 
@@ -116,6 +179,10 @@ What to look for:
 - Candidate list with `logit=` and `p=`.
 
 Concept: **generation is a loop of next-token decisions**.
+
+> 🧪 Try it:
+> Re-run this command with `--seed 42` twice.
+> Then change to a different seed and compare token choices.
 
 ### 5) Run step mode with logits + probabilities
 
