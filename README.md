@@ -1,5 +1,104 @@
 # MiniGPTSharp
 
+## Learning Walkthrough (5 minutes)
+
+This mini-lab is for beginner C# developers who want to see how GPT-style generation works with real CLI output.
+
+- **Tokens** are small text pieces (words, punctuation, or sub-word chunks) that the model uses instead of raw strings.
+- **Logits** are raw scores the model gives each possible next token before probabilities are calculated.
+- **Softmax** converts logits into probabilities that add up to 100%.
+- **Temperature** changes randomness (lower = safer/more focused, higher = more varied).
+- **Top-k** limits sampling to only the K highest-scoring tokens.
+
+### 1) Set a CLI path variable
+
+```powershell
+$cli = "MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
+```
+
+What to look for:
+- You can reuse `$cli` in all following commands.
+- Commands stay short and easier to read.
+
+Concept: **repeatable command setup** for quick experiments.
+
+### 2) Run CLI help
+
+```powershell
+dotnet run -c Release --project $cli -- --help
+```
+
+What to look for:
+- `generate`, `step`, and `predict` commands.
+- Sampling options like `--temperature` and `--top-k`.
+
+Concept: **what controls generation behavior**.
+
+### 3) Run `predict`
+
+```powershell
+dotnet run -c Release --project $cli -- predict --prompt "The capital of France is" --topn 5
+```
+
+What to look for:
+- Top next-token candidates.
+- Each candidate's probability.
+
+Concept: **the model predicts a probability distribution, not one fixed token**.
+
+### 4) Run step mode with explanations (probabilities)
+
+```powershell
+dotnet run -c Release --project $cli -- step --prompt "The capital of France is" --tokens 3 --seed 42 --explain
+```
+
+What to look for:
+- One generation step at a time.
+- Context length and sampling settings.
+- Candidate list with `logit=` and `p=`.
+
+Concept: **generation is a loop of next-token decisions**.
+
+### 5) Run step mode with logits + probabilities
+
+```powershell
+dotnet run -c Release --project $cli -- step --prompt "The capital of France is" --tokens 3 --seed 42 --explain --show-logits --logits-topn 5 --logits-format centered
+```
+
+What to look for:
+- `Logits (pre-softmax)` section.
+- The same candidate tokens shown with transformed logits.
+- The note that centered logits use `logit - max_logit`.
+
+Concept: **softmax starts from logits, and formatting helps you see score relationships**.
+
+### 6) Compare deterministic vs seeded sampling
+
+```powershell
+dotnet run -c Release --project $cli -- --prompt "Hello" --tokens 6 --deterministic
+dotnet run -c Release --project $cli -- --prompt "Hello" --tokens 6 --seed 42
+dotnet run -c Release --project $cli -- --prompt "Hello" --tokens 6 --seed 42
+```
+
+What to look for:
+- Deterministic mode always picks argmax.
+- Same seed gives the same output again.
+- Different seeds can produce different continuations.
+
+Concept: **randomness is controllable for learning and testing**.
+
+### 7) Optional: run tests
+
+```powershell
+dotnet test -c Release
+```
+
+What to look for:
+- Green test output.
+- Confidence that changes did not break core behavior.
+
+Concept: **verification and regression safety**.
+
 ## What is an AI Model (in simple terms)?
 
 If you're a C# developer, the easiest way to think about a base AI model is:
