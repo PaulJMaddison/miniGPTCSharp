@@ -46,6 +46,64 @@ What to look for:
 
 Concept: **the model predicts a probability distribution, not one fixed token**.
 
+## Why isn't 'Paris' the top prediction?
+
+Great question. This is one of the most important lessons in this repo.
+
+When you run `predict`, the model is **not** doing logic like "France -> capital -> Paris." It is also **not** looking up a fact from a database.
+
+Instead, it does this:
+
+1. Runs a forward pass over the prompt tokens.
+2. Produces one score per possible next token (**logits**).
+3. Converts those scores into probabilities with softmax.
+4. Shows the top-N highest probabilities.
+
+Logits are the raw scores the model outputs before turning them into probabilities.
+
+If "capital" appears above "Paris," that is not a bug. It just means the model gave "capital" a higher next-token probability in that exact context.
+
+Think of it like IntelliSense/autocomplete in C#: suggestions are based on learned patterns, not on what is universally true.
+
+Also important: `predict` does **not** sample. There is no randomness there. Seed, temperature, and top-k do not apply to `predict` output.
+
+> [!TIP]
+> ### Mental model
+> - **Predict = what the model believes** (top probabilities)
+> - **Generate/Step = how we pick from that belief** (argmax vs random weighted pick)
+
+| Command | Random? | What it teaches |
+| --- | --- | --- |
+| `predict` | No | model belief distribution |
+| `generate --deterministic` | No | argmax (always pick top token) |
+| `generate` / `step` with `--seed` | Yes | sampling from probabilities |
+
+### Student exercise: see the difference yourself
+
+Use these exact commands:
+
+```powershell
+$cli="C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
+dotnet run -c Release --project $cli -- predict --prompt "The capital of France is" --topn 5
+dotnet run -c Release --project $cli -- generate --prompt "The capital of France is" --tokens 10 --deterministic
+dotnet run -c Release --project $cli -- step --prompt "The capital of France is" --tokens 5 --seed 42 --explain
+```
+
+What to notice:
+
+- `predict`: "capital" can be #1 even if it feels wrong.
+- `generate --deterministic`: always picks the #1 token at each step.
+- `step --seed 42 --explain`: sampling can pick a token that is not #1, because lower-ranked tokens can still have some probability.
+
+### So how do we make Paris #1?
+
+To truly change the ranking, you must change the **model**, not the random number settings.
+
+- Train more on high-quality factual examples.
+- Fine-tune so weights shift toward better factual next-token rankings.
+
+You can also add a **logit bias** as a teaching demo (a controlled "cheat"), but that is not the same as the model actually learning better weights.
+
 ### 4) Run step mode with explanations (probabilities)
 
 ```powershell
