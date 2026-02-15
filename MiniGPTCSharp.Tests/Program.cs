@@ -20,8 +20,14 @@ AssertEqual(5, step.TopKValue, "Step top-k value stored", failures);
 var greedyStep = model.Step(tokens, temperature: 0f, topK: 5, explain: true);
 AssertTrue(greedyStep.DebugText.Contains("greedy", StringComparison.OrdinalIgnoreCase), "Greedy explanation appears", failures);
 
-var prediction = model.PredictNextTokens("The capital of France is", 5);
-AssertEqual(5, prediction.Count, "Predict returns top 5", failures);
+var predictions = model.PredictNextTokens("The capital of France is", topN: 5, temperature: 1.0f, topKFilter: 0);
+AssertEqual(5, predictions.Count, "Predict returns top 5", failures);
+AssertTrue(predictions.All(p => p.Probability >= 0f), "Predict probabilities are non-negative", failures);
+AssertTrue(predictions.Zip(predictions.Skip(1), (a, b) => a.Probability >= b.Probability).All(x => x), "Predict list is sorted descending", failures);
+
+var filteredPredictions = model.PredictNextTokens("The capital of France is", topN: 3, temperature: 0f, topKFilter: 2);
+AssertEqual(3, filteredPredictions.Count, "Predict topN works", failures);
+AssertTrue(filteredPredictions.Count(p => p.Probability > 0f) <= 2, "Predict top-k filter masks non-top tokens", failures);
 
 if (failures.Count == 0)
 {

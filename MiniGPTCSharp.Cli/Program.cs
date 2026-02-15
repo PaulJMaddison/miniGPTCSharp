@@ -8,8 +8,7 @@ if (args.Length == 0)
 
 if (args[0].Equals("predict", StringComparison.OrdinalIgnoreCase))
 {
-    var prompt = args.Length > 1 ? args[1] : "The capital of France is";
-    RunPredict(prompt);
+    RunPredict(args);
     return;
 }
 
@@ -85,17 +84,35 @@ static void RunStepMode(MiniGptModel model, string prompt, int maxNewTokens, boo
     Console.WriteLine(model.Tokenizer.Decode(tokens));
 }
 
-static void RunPredict(string prompt)
+static void RunPredict(string[] args)
 {
-    var model = new MiniGptModel();
-    var predictions = model.PredictNextTokens(prompt, 5);
-
-    Console.WriteLine($"Prompt: {prompt}");
-    Console.WriteLine("Top 5 next-token predictions:");
-
-    foreach (var item in predictions)
+    var prompt = GetOption(args, "--prompt");
+    if (string.IsNullOrWhiteSpace(prompt) && args.Length > 1 && !args[1].StartsWith("--", StringComparison.Ordinal))
     {
-        Console.WriteLine($"- {item.Key,-15} {item.Value:P2}");
+        prompt = args[1];
+    }
+
+    prompt ??= "The capital of France is";
+
+    var topN = ParseInt(GetOption(args, "--topn"), 5);
+    var temperature = ParseFloat(GetOption(args, "--temp"), 1.0f);
+    var topKFilter = ParseInt(GetOption(args, "--topk"), 0);
+
+    var model = new MiniGptModel();
+    var predictions = model.PredictNextTokens(prompt, topN, temperature, topKFilter);
+
+    Console.WriteLine($"Prompt: \"{prompt}\"");
+    Console.WriteLine($"Next-token predictions (top {predictions.Count}):");
+
+    for (var i = 0; i < predictions.Count; i++)
+    {
+        var prediction = predictions[i];
+        Console.WriteLine($"  {i + 1}) \"{prediction.TokenText}\" (id={prediction.TokenId}) p={prediction.Probability:0.00}");
+    }
+
+    if (temperature <= 0f)
+    {
+        Console.WriteLine("Note: --temp must be > 0. Using 1.0 instead.");
     }
 }
 
@@ -167,7 +184,7 @@ static void PrintHelp()
 {
     Console.WriteLine("MiniGPTSharp learning CLI");
     Console.WriteLine("Commands:");
-    Console.WriteLine("  predict \"The capital of France is\"");
+    Console.WriteLine("  predict --prompt \"The capital of France is\" [--topn N] [--temp T] [--topk K]");
     Console.WriteLine("  learn attention|embeddings|sampling");
     Console.WriteLine("  --demo-sampling [--prompt text]");
     Console.WriteLine("  --prompt text [--step] [--explain] [--temperature n] [--top-k n] [--layers n] [--max-new-tokens n]");
