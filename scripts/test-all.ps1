@@ -15,13 +15,6 @@ $SolutionPath = Join-Path $RepoRoot "miniGPTCSharp.sln"
 $CliProj      = Join-Path $RepoRoot "MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
 $TestsProj    = Join-Path $RepoRoot "MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj"
 
-function Run-Cli {
-    param([string[]]$CliArgs)
-
-    $baseArgs = @('run', '--project', $CliProj, '--configuration', 'Release', '--')
-    return (& dotnet @baseArgs @CliArgs | Out-String).Trim()
-}
-
 function Assert-Contains {
     param(
         [string]$Text,
@@ -31,6 +24,18 @@ function Assert-Contains {
 
     if ($Text -notmatch [regex]::Escape($Needle)) {
         throw "$Message. Missing '$Needle'."
+    }
+}
+
+function Assert-NotContains {
+    param(
+        [string]$Text,
+        [string]$Needle,
+        [string]$Message
+    )
+
+    if ($Text -match [regex]::Escape($Needle)) {
+        throw "$Message. Unexpected '$Needle'."
     }
 }
 
@@ -105,29 +110,35 @@ try {
 finally { Pop-Location }
 
 # 1) Predict determinism
+Write-Host "`nRunning CLI subcommand dispatch regression check..." -ForegroundColor Yellow
+$predictDispatch = Run-Cli @("predict","--prompt","The capital of France is","--topn","1")
+Assert-NotContains $predictDispatch "Commands:" "Predict command fell through to top-level help"
+Assert-Contains $predictDispatch "Next-token predictions" "Predict command did not execute predict handler"
+
+# 2) Predict determinism
 Write-Host "`nRunning predict reproducibility check..." -ForegroundColor Yellow
 $predict1 = Run-Cli @("predict","--prompt","The capital of France is","--topn","5")
 $predict2 = Run-Cli @("predict","--prompt","The capital of France is","--topn","5")
 Assert-Equal $predict1 $predict2 "Predict mode is deterministic (same output twice)."
 
-# 2) Deterministic generation
+# 3) Deterministic generation
 Write-Host "`nRunning deterministic generation check..." -ForegroundColor Yellow
 $det1 = Run-Cli @("generate","--prompt","Hello my name is","--tokens","$Tokens","--deterministic")
 $det2 = Run-Cli @("generate","--prompt","Hello my name is","--tokens","$Tokens","--deterministic")
 Assert-Equal $det1 $det2 "Generate --deterministic is repeatable."
 
-# 3) Same seed repeatability
+# 4) Same seed repeatability
 Write-Host "`nRunning same-seed generation check..." -ForegroundColor Yellow
 $seed42_a = Run-Cli @("generate","--prompt","Hello my name is","--tokens","$Tokens","--seed","42")
 $seed42_b = Run-Cli @("generate","--prompt","Hello my name is","--tokens","$Tokens","--seed","42")
 Assert-Equal $seed42_a $seed42_b "Generate --seed 42 is repeatable."
 
-# 4) Different seeds should differ
+# 5) Different seeds should differ
 Write-Host "`nRunning different-seed divergence check..." -ForegroundColor Yellow
 $seed7 = Run-Cli @("generate","--prompt","Hello my name is","--tokens","$Tokens","--seed","7")
 Assert-NotEqual $seed42_a $seed7 "Different seeds produce different outputs."
 
-# 5) Step mode (optional)
+# 6) Step mode (optional)
 Write-Host "`nRunning optional step-mode deterministic check..." -ForegroundColor Yellow
 try {
   $step1 = Run-Cli @("step","--prompt","Once upon a time","--tokens","10","--seed","123","--explain")
@@ -139,7 +150,7 @@ catch {
   Write-Host $_.Exception.Message -ForegroundColor DarkYellow
 }
 
-# 6) dotnet test (optional)
+# 7) dotnet test (optional)
 Push-Location $RepoRoot
 try {
   if (Test-Path $TestsProj) {
