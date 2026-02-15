@@ -5,33 +5,47 @@ namespace MiniGPTCSharp;
 public class MiniGptModel
 {
     private readonly List<TransformerBlock> _layers;
-    private readonly Random _random;
 
     public MiniGptModel(GptConfig? config = null, int seed = 1234)
     {
         Config = config ?? new GptConfig();
         Tokenizer = new VocabularyTokenizer();
         _layers = Enumerable.Range(0, Math.Max(0, Config.LayerCount)).Select(i => new TransformerBlock(i)).ToList();
-        _random = new Random(seed);
     }
 
     public GptConfig Config { get; }
 
     public VocabularyTokenizer Tokenizer { get; }
 
-    public string Generate(string prompt, bool explain = false, int maxNewTokens = 10)
+    public string Generate(
+        string prompt,
+        bool explain = false,
+        int maxNewTokens = 10,
+        int? seed = null,
+        bool deterministic = false)
     {
         var tokens = Tokenizer.Encode(prompt);
+        Random? rng = deterministic ? null : seed.HasValue ? new Random(seed.Value) : new Random();
+
         if (explain)
         {
             Console.WriteLine($"Prompt: {prompt}");
             Console.WriteLine($"Tokenized Input: [{string.Join(", ", Tokenizer.SplitTokens(prompt))}]");
             Console.WriteLine($"Token IDs: [{string.Join(", ", tokens)}]");
+
+            if (deterministic)
+            {
+                Console.WriteLine("Generation Mode: Deterministic (Greedy ArgMax)");
+            }
+            else if (seed.HasValue)
+            {
+                Console.WriteLine($"Random Seed: {seed.Value}");
+            }
         }
 
         for (var i = 0; i < maxNewTokens; i++)
         {
-            var step = Step(tokens, Config.Temperature, Config.TopK, explain);
+            var step = Step(tokens, Config.Temperature, Config.TopK, explain, rng, deterministic);
             tokens.Add(step.NextTokenId);
 
             if (explain)
@@ -48,7 +62,24 @@ public class MiniGptModel
         IList<int> currentTokenIds,
         float temperature = 1.0f,
         int topK = 40,
-        bool explain = false)
+        bool explain = false,
+        int? seed = null,
+        bool deterministic = false,
+        Random? samplingRandom = null)
+    {
+        Random? rng = deterministic
+            ? null
+            : samplingRandom ?? (seed.HasValue ? new Random(seed.Value) : new Random());
+        return Step(currentTokenIds, temperature, topK, explain, rng, deterministic);
+    }
+
+    private GenerationStepResult Step(
+        IList<int> currentTokenIds,
+        float temperature,
+        int topK,
+        bool explain,
+        Random? rng,
+        bool deterministic)
     {
         // In GPT-style generation we always use all current tokens as context,
         // then only read logits from the final position to predict ONE next token.
@@ -56,14 +87,14 @@ public class MiniGptModel
         var nextTokenLogits = ComputeNextTokenLogits(context);
 
         var candidateCount = Math.Clamp(topK, 1, nextTokenLogits.Length);
-        var useGreedy = temperature <= 0f || candidateCount == 1;
+        var useGreedy = deterministic || temperature <= 0f || candidateCount == 1;
         var filteredLogits = ApplyTopKFilter(nextTokenLogits, candidateCount);
         var probabilities = Softmax(filteredLogits, useGreedy ? 1f : temperature);
         var candidates = BuildTopKCandidates(probabilities, candidateCount);
 
         var selectedTokenId = useGreedy
             ? candidates[0].id
-            : SampleCategorical(candidates);
+            : SampleCategorical(candidates, rng ?? new Random());
 
         var selectedTokenText = Tokenizer.TokenText(selectedTokenId);
 
@@ -74,7 +105,9 @@ public class MiniGptModel
             sb.AppendLine($"Current length: {context.Count} tokens");
             if (useGreedy)
             {
-                sb.AppendLine("Sampling mode: greedy (temperature <= 0 or top-k = 1)");
+                sb.AppendLine(deterministic
+                    ? "Sampling mode: deterministic argmax"
+                    : "Sampling mode: greedy (temperature <= 0 or top-k = 1)");
             }
             else
             {
@@ -230,9 +263,9 @@ public class MiniGptModel
             .ToList();
     }
 
-    private int SampleCategorical(IReadOnlyList<(int id, string text, float p)> candidates)
+    private static int SampleCategorical(IReadOnlyList<(int id, string text, float p)> candidates, Random rng)
     {
-        var roll = _random.NextDouble();
+        var roll = rng.NextDouble();
         double cumulative = 0;
 
         foreach (var item in candidates)
