@@ -31,79 +31,95 @@ public class MiniGptModel
 
         for (var i = 0; i < maxNewTokens; i++)
         {
-            var step = Step(tokens);
-            tokens.Add(step.SelectedTokenId);
+            var step = Step(tokens, Config.Temperature, Config.TopK, explain);
+            tokens.Add(step.NextTokenId);
 
             if (explain)
             {
                 Console.WriteLine($"\n--- Generation Step {i + 1} ---");
-                Console.WriteLine(step.DebugInfo);
-                Console.WriteLine($"Selected Token: {step.SelectedTokenText} (ID: {step.SelectedTokenId})");
-                Console.WriteLine($"Updated Sequence: {Tokenizer.Decode(tokens)}");
+                Console.Write(step.DebugText);
             }
         }
 
         return Tokenizer.Decode(tokens);
     }
 
-    public GenerationStepResult Step(List<int> currentTokens)
+    public GenerationStepResult Step(
+        IList<int> currentTokenIds,
+        float temperature = 1.0f,
+        int topK = 40,
+        bool explain = false)
     {
-        var debug = new StringBuilder();
-        var embeddings = BuildEmbeddings(currentTokens);
-        debug.AppendLine($"Embedding Tensor Shape: {embeddings.Shape}");
-
+        // In GPT-style generation we always use all current tokens as context,
+        // then only read logits from the final position to predict ONE next token.
+        var context = currentTokenIds as IReadOnlyList<int> ?? currentTokenIds.ToList();
+        var embeddings = BuildEmbeddings(context);
         var hidden = embeddings;
-        Tensor attention = new Tensor(currentTokens.Count, currentTokens.Count);
-
-        if (_layers.Count == 0)
-        {
-            debug.AppendLine("Transformer Layers: bypassed (LayerCount = 0). Using embeddings directly.");
-        }
 
         for (var i = 0; i < _layers.Count; i++)
         {
-            debug.AppendLine($"Running Transformer Block {i + 1}/{_layers.Count}...");
-            hidden = _layers[i].Forward(hidden, currentTokens, Config);
-            attention = _layers[i].Attention.LastAttentionWeights.Clone();
-
-            var focusTargets = _layers[i].Attention.GetTopAttentionTargets(currentTokens.Count - 1);
-            var focusText = string.Join(", ", focusTargets.Select(t => $"token[{t.TokenIndex}]={Tokenizer.TokenText(currentTokens[t.TokenIndex])} ({t.Weight:F3})"));
-            debug.AppendLine($"Top attention targets for newest token: {focusText}");
+            hidden = _layers[i].Forward(hidden, context, Config);
         }
 
-        var logits = BuildLogits(hidden, currentTokens);
-        debug.AppendLine($"Logits Tensor Shape: {logits.Shape}");
+        var logits = BuildLogits(hidden, context);
+        var nextTokenLogits = Enumerable.Range(0, logits.Columns)
+            .Select(i => logits[0, i])
+            .ToArray();
 
-        var probs = Softmax(logits, Config.Temperature);
-        var topK = probs
-            .OrderByDescending(x => x.Value)
-            .Take(Math.Min(Config.TopK, probs.Count))
-            .ToDictionary(x => Tokenizer.TokenText(x.Key), x => x.Value);
+        var candidateCount = Math.Clamp(topK, 1, nextTokenLogits.Length);
+        var useGreedy = temperature <= 0f || candidateCount == 1;
+        var filteredLogits = ApplyTopKFilter(nextTokenLogits, candidateCount);
+        var probabilities = Softmax(filteredLogits, useGreedy ? 1f : temperature);
+        var candidates = BuildTopKCandidates(probabilities, candidateCount);
 
-        debug.AppendLine("Top-K Probabilities:");
-        foreach (var item in topK)
+        var selectedTokenId = useGreedy
+            ? candidates[0].id
+            : SampleCategorical(candidates);
+
+        var selectedTokenText = Tokenizer.TokenText(selectedTokenId);
+
+        var debugText = string.Empty;
+        if (explain)
         {
-            debug.AppendLine($"  {item.Key}: {item.Value:P2}");
-        }
+            var sb = new StringBuilder();
+            sb.AppendLine($"Current length: {context.Count} tokens");
+            if (useGreedy)
+            {
+                sb.AppendLine("Sampling mode: greedy (temperature <= 0 or top-k = 1)");
+            }
+            else
+            {
+                sb.AppendLine($"Sampling mode: temperature={temperature:0.###}, top-k={candidateCount}");
+            }
 
-        var selected = SampleTopK(probs, Math.Min(Config.TopK, probs.Count));
+            sb.AppendLine("Top-k candidates:");
+            foreach (var item in candidates)
+            {
+                sb.AppendLine($"  id={item.id,-3} text={item.text,-10} p={item.p:P2}");
+            }
+
+            sb.AppendLine($"Chosen token: id={selectedTokenId}, text={selectedTokenText}");
+            debugText = sb.ToString();
+        }
 
         return new GenerationStepResult
         {
-            SelectedTokenId = selected,
-            SelectedTokenText = Tokenizer.TokenText(selected),
-            TopKProbabilities = topK,
-            Logits = logits,
-            AttentionWeights = attention,
-            DebugInfo = debug.ToString()
+            NextTokenId = selectedTokenId,
+            NextTokenText = selectedTokenText,
+            TopK = candidates,
+            Temperature = temperature,
+            TopKValue = candidateCount,
+            DebugText = debugText
         };
     }
 
     public Dictionary<string, float> PredictNextTokens(string prompt, int count = 5)
     {
         var tokens = Tokenizer.Encode(prompt);
-        var step = Step(tokens);
-        return step.TopKProbabilities.Take(count).ToDictionary(x => x.Key, x => x.Value);
+        var step = Step(tokens, Config.Temperature, Config.TopK, explain: false);
+        return step.TopK
+            .Take(count)
+            .ToDictionary(x => x.text, x => x.p);
     }
 
     private Tensor BuildEmbeddings(IReadOnlyList<int> tokens)
@@ -144,33 +160,61 @@ public class MiniGptModel
         return logits;
     }
 
-    private Dictionary<int, float> Softmax(Tensor logits, float temperature)
+    private static float[] ApplyTopKFilter(float[] logits, int topK)
     {
-        var temp = temperature <= 0 ? 1f : temperature;
-        var values = Enumerable.Range(0, logits.Columns).Select(i => logits[0, i] / temp).ToArray();
-        var max = values.Max();
-        var exp = values.Select(v => MathF.Exp(v - max)).ToArray();
-        var sum = exp.Sum();
+        var filtered = Enumerable.Repeat(float.NegativeInfinity, logits.Length).ToArray();
+        var top = Enumerable.Range(0, logits.Length)
+            .Select(i => (id: i, logit: logits[i]))
+            .OrderByDescending(x => x.logit)
+            .Take(topK)
+            .ToList();
 
-        return Enumerable.Range(0, logits.Columns)
-            .ToDictionary(i => i, i => exp[i] / sum);
+        foreach (var item in top)
+        {
+            filtered[item.id] = item.logit;
+        }
+
+        return filtered;
     }
 
-    private int SampleTopK(Dictionary<int, float> probs, int topK)
+    private static float[] Softmax(float[] logits, float temperature)
     {
-        var candidates = probs.OrderByDescending(x => x.Value).Take(topK).ToList();
+        var temp = temperature <= 0f ? 1f : temperature;
+        var scaled = logits.Select(v => v / temp).ToArray();
+        var max = scaled.Where(v => !float.IsNegativeInfinity(v)).DefaultIfEmpty(0f).Max();
+
+        var exp = scaled.Select(v => float.IsNegativeInfinity(v) ? 0f : MathF.Exp(v - max)).ToArray();
+        var sum = exp.Sum();
+
+        return sum <= 0f
+            ? Enumerable.Range(0, logits.Length).Select(i => 1f / logits.Length).ToArray()
+            : exp.Select(v => v / sum).ToArray();
+    }
+
+    private List<(int id, string text, float p)> BuildTopKCandidates(float[] probabilities, int topK)
+    {
+        return Enumerable.Range(0, probabilities.Length)
+            .Select(i => (id: i, text: Tokenizer.TokenText(i), p: probabilities[i]))
+            .Where(x => x.p > 0f)
+            .OrderByDescending(x => x.p)
+            .Take(topK)
+            .ToList();
+    }
+
+    private int SampleCategorical(IReadOnlyList<(int id, string text, float p)> candidates)
+    {
         var roll = _random.NextDouble();
         double cumulative = 0;
 
         foreach (var item in candidates)
         {
-            cumulative += item.Value;
+            cumulative += item.p;
             if (roll <= cumulative)
             {
-                return item.Key;
+                return item.id;
             }
         }
 
-        return candidates[0].Key;
+        return candidates[0].id;
     }
 }
