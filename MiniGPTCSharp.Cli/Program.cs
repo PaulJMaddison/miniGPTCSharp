@@ -6,6 +6,14 @@ if (args.Length == 0)
     return;
 }
 
+if (args.Contains("--help", StringComparer.OrdinalIgnoreCase)
+    || args.Contains("-h", StringComparer.OrdinalIgnoreCase)
+    || args[0].Equals("help", StringComparison.OrdinalIgnoreCase))
+{
+    PrintHelp();
+    return;
+}
+
 if (args[0].Equals("predict", StringComparison.OrdinalIgnoreCase))
 {
     RunPredict(args);
@@ -218,7 +226,6 @@ static void RunPredict(string[] args)
         var explainTopK = topKFilter > 0 ? topKFilter : model.Tokenizer.Vocabulary.Count;
         var decisionView = model.Step(tokens, temperature, explainTopK, explain: true, deterministic: deterministic, seed: 1234);
         PrintNarratedStep(decisionView.DebugInfo, deterministic, commandName: "predict");
-        Console.WriteLine("In predict mode, we stop here and report probabilities instead of appending a token.");
     }
 
     if (deterministic)
@@ -383,6 +390,13 @@ static void PrintNarratedStep(StepDebugInfo debugInfo, bool deterministic, strin
         Console.WriteLine($"  id={candidate.TokenId,-3} text={candidate.Text,-10} logit={candidate.Logit,8:0.0000}  p={candidate.Probability,7:P2}");
     }
 
+    if (commandName.Equals("predict", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine("\n6) Decision step: none (predict only reports probabilities)");
+        Console.WriteLine("No token is chosen or appended in predict mode");
+        return;
+    }
+
     Console.WriteLine("\n6) Sampling or argmax decision");
     if (deterministic)
     {
@@ -397,20 +411,10 @@ static void PrintNarratedStep(StepDebugInfo debugInfo, bool deterministic, strin
     Console.WriteLine($"Chosen token: id={debugInfo.Chosen.TokenId}, text={debugInfo.Chosen.Text}");
 
     Console.WriteLine("\n7) Token appended");
-    if (commandName.Equals("predict", StringComparison.OrdinalIgnoreCase))
-    {
-        Console.WriteLine("Predict mode does not append the token; it only reports likely next tokens.");
-    }
-    else
-    {
-        Console.WriteLine("The chosen token is appended to the context so the model can use it on the next step.");
-    }
+    Console.WriteLine("The chosen token is appended to the context so the model can use it on the next step.");
 
-    if (!commandName.Equals("predict", StringComparison.OrdinalIgnoreCase))
-    {
-        Console.WriteLine("\n8) Repeat");
-        Console.WriteLine($"The {commandName} command repeats this loop until it reaches the requested token count.");
-    }
+    Console.WriteLine("\n8) Repeat");
+    Console.WriteLine($"The {commandName} command repeats this loop until it reaches the requested token count.");
 }
 
 static void PrintLogitsSection(StepDebugInfo debugInfo, int logitsTopN, LogitsDisplayFormat logitsFormat)
