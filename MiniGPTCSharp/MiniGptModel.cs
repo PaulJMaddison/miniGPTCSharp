@@ -25,6 +25,10 @@ public class MiniGptModel
         bool deterministic = false)
     {
         var tokens = Tokenizer.Encode(prompt);
+        // Important for reproducible learning demos:
+        // create ONE RNG for the full generation run so each token draw advances
+        // the same sequence. Re-creating Random inside the loop can cause repeated
+        // draws and can make different seeds look identical.
         Random? rng = deterministic ? null : seed.HasValue ? new Random(seed.Value) : new Random();
 
         if (explain)
@@ -94,7 +98,7 @@ public class MiniGptModel
 
         var selectedTokenId = useGreedy
             ? candidates[0].id
-            : SampleCategorical(candidates, rng ?? new Random());
+            : SampleFromDistribution(probabilities, rng ?? throw new InvalidOperationException("Sampling RNG is required in non-deterministic mode."));
 
         var selectedTokenText = Tokenizer.TokenText(selectedTokenId);
 
@@ -263,20 +267,29 @@ public class MiniGptModel
             .ToList();
     }
 
-    private static int SampleCategorical(IReadOnlyList<(int id, string text, float p)> candidates, Random rng)
+    private static int SampleFromDistribution(float[] probabilities, Random rng)
     {
         var roll = rng.NextDouble();
         double cumulative = 0;
 
-        foreach (var item in candidates)
+        for (var tokenId = 0; tokenId < probabilities.Length; tokenId++)
         {
-            cumulative += item.p;
+            cumulative += probabilities[tokenId];
             if (roll <= cumulative)
             {
-                return item.id;
+                return tokenId;
             }
         }
 
-        return candidates[0].id;
+        // Guard for tiny floating-point drift when cumulative sum ends just below 1.0.
+        for (var tokenId = probabilities.Length - 1; tokenId >= 0; tokenId--)
+        {
+            if (probabilities[tokenId] > 0f)
+            {
+                return tokenId;
+            }
+        }
+
+        return 0;
     }
 }
