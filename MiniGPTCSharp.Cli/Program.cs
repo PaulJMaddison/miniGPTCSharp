@@ -32,6 +32,8 @@ static void RunGeneration(string[] args)
     var prompt = GetOption(args, "--prompt") ?? "The capital of France is";
     var explain = args.Contains("--explain", StringComparer.OrdinalIgnoreCase);
     var stepMode = args.Contains("--step", StringComparer.OrdinalIgnoreCase);
+    var deterministic = args.Contains("--deterministic", StringComparer.OrdinalIgnoreCase);
+    var seed = ParseNullableInt(GetOption(args, "--seed"));
 
     var config = new GptConfig
     {
@@ -46,29 +48,51 @@ static void RunGeneration(string[] args)
     var maxNewTokens = ParseInt(GetOption(args, "--max-new-tokens"), 8);
     var model = new MiniGptModel(config);
 
+    if (deterministic)
+    {
+        Console.WriteLine("Generation Mode: Deterministic (Greedy ArgMax)");
+    }
+    else if (seed.HasValue)
+    {
+        Console.WriteLine($"Random Seed: {seed.Value}");
+    }
+
     if (stepMode)
     {
-        RunStepMode(model, prompt, maxNewTokens, explain);
+        RunStepMode(model, prompt, maxNewTokens, explain, seed, deterministic);
         return;
     }
 
-    var output = model.Generate(prompt, explain, maxNewTokens);
+    var output = model.Generate(prompt, explain, maxNewTokens, seed, deterministic);
 
     Console.WriteLine("\n=== Final Output ===");
     Console.WriteLine(output);
 }
 
-static void RunStepMode(MiniGptModel model, string prompt, int maxNewTokens, bool explain)
+static void RunStepMode(
+    MiniGptModel model,
+    string prompt,
+    int maxNewTokens,
+    bool explain,
+    int? seed,
+    bool deterministic)
 {
     // Step mode is just the autocomplete loop with one explicit Step(...) call per token.
     var tokens = model.Tokenizer.Encode(prompt);
+    Random? rng = deterministic ? null : seed.HasValue ? new Random(seed.Value) : new Random();
 
     Console.WriteLine("Step mode: generating one token at a time.");
     Console.WriteLine($"Start text: {model.Tokenizer.Decode(tokens)}");
 
     for (var i = 0; i < maxNewTokens; i++)
     {
-        var step = model.Step(tokens, model.Config.Temperature, model.Config.TopK, explain);
+        var step = model.Step(
+            tokens,
+            model.Config.Temperature,
+            model.Config.TopK,
+            explain,
+            deterministic: deterministic,
+            samplingRandom: rng);
         tokens.Add(step.NextTokenId);
 
         if (explain && !string.IsNullOrWhiteSpace(step.DebugText))
@@ -97,9 +121,15 @@ static void RunPredict(string[] args)
     var topN = ParseInt(GetOption(args, "--topn"), 5);
     var temperature = ParseFloat(GetOption(args, "--temp"), 1.0f);
     var topKFilter = ParseInt(GetOption(args, "--topk"), 0);
+    var deterministic = args.Contains("--deterministic", StringComparer.OrdinalIgnoreCase);
 
     var model = new MiniGptModel();
     var predictions = model.PredictNextTokens(prompt, topN, temperature, topKFilter);
+
+    if (deterministic)
+    {
+        Console.WriteLine("Generation Mode: Deterministic (Greedy ArgMax)");
+    }
 
     Console.WriteLine($"Prompt: \"{prompt}\"");
     Console.WriteLine($"Next-token predictions (top {predictions.Count}):");
@@ -128,7 +158,7 @@ static void RunSamplingDemo(string prompt)
         foreach (var topK in topKs)
         {
             var model = new MiniGptModel(new GptConfig { Temperature = temp, TopK = topK, LayerCount = 2 }, seed: 777);
-            var generated = model.Generate(prompt, explain: false, maxNewTokens: 6);
+            var generated = model.Generate(prompt, explain: false, maxNewTokens: 6, seed: 777);
             Console.WriteLine($"temperature={temp:0.0}, top-k={topK,-2} => {generated}");
         }
 
@@ -178,16 +208,18 @@ static string? GetOption(string[] args, string option)
 
 static int ParseInt(string? value, int fallback) => int.TryParse(value, out var parsed) ? parsed : fallback;
 
+static int? ParseNullableInt(string? value) => int.TryParse(value, out var parsed) ? parsed : null;
+
 static float ParseFloat(string? value, float fallback) => float.TryParse(value, out var parsed) ? parsed : fallback;
 
 static void PrintHelp()
 {
     Console.WriteLine("MiniGPTSharp learning CLI");
     Console.WriteLine("Commands:");
-    Console.WriteLine("  predict --prompt \"The capital of France is\" [--topn N] [--temp T] [--topk K]");
+    Console.WriteLine("  predict --prompt \"The capital of France is\" [--topn N] [--temp T] [--topk K] [--deterministic]");
     Console.WriteLine("  learn attention|embeddings|sampling");
     Console.WriteLine("  --demo-sampling [--prompt text]");
-    Console.WriteLine("  --prompt text [--step] [--explain] [--temperature n] [--top-k n] [--layers n] [--max-new-tokens n]");
+    Console.WriteLine("  --prompt text [--step] [--explain] [--temperature n] [--top-k n] [--layers n] [--max-new-tokens n] [--seed n] [--deterministic]");
     Console.WriteLine("Break-the-model flags:");
     Console.WriteLine("  --no-attention --no-position --no-layernorm");
 }

@@ -183,6 +183,19 @@ Append the chosen token to the sequence.
 ### 9) Loop
 Repeat until max length or stop condition.
 
+### Reproducible Results
+
+By default, GPT-style text generation uses randomness, so the same prompt can produce different outputs.
+
+MiniGPTSharp now supports two teaching-friendly options:
+
+- `--seed 42`: keeps sampling behavior, but makes it repeatable.
+  - Same prompt + same model + same settings + same seed = same output.
+- `--deterministic`: turns off sampling and always picks the most likely next token (greedy ArgMax).
+  - This removes randomness completely.
+
+Use deterministic mode when you want stable, easy-to-explain walkthroughs in class or documentation.
+
 ---
 
 ## Mental model: "How the model predicts the next word"
