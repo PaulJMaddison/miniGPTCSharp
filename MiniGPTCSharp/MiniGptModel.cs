@@ -47,14 +47,18 @@ public class MiniGptModel
             }
         }
 
-        for (var i = 0; i < maxNewTokens; i++)
+        var newTokensToGenerate = maxNewTokens;
+        var generated = 0;
+
+        while (generated < newTokensToGenerate)
         {
             var step = Step(tokens, Config.Temperature, Config.TopK, explain, rng, deterministic);
             tokens.Add(step.NextTokenId);
+            generated++;
 
             if (explain)
             {
-                Console.WriteLine($"\n--- Generation Step {i + 1} ---");
+                Console.WriteLine($"\n--- Generation Step {generated} ---");
                 Console.Write(step.DebugText);
             }
         }

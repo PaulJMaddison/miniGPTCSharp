@@ -366,7 +366,7 @@ dotnet run --project src/MiniGPTSharp.CLI -- \
   --model path/to/model_state_dict.pt \
   --tokenizer path/to/tokenizer \
   --prompt "The C# developer opened the editor and" \
-  --max-new-tokens 100 \
+  --tokens 100 \
   --temperature 0.8 \
   --top-k 40
 ```
@@ -378,7 +378,7 @@ Step Mode runs the same autocomplete loop, but exposes each next-token choice so
 ```bash
 dotnet run --project MiniGPTCSharp.Cli -- \
   --prompt "The capital of France is" \
-  --max-new-tokens 5 \
+  --tokens 5 \
   --temperature 0.8 \
   --top-k 5 \
   --step \
