@@ -299,6 +299,15 @@ dotnet run --project MiniGPTCSharp.Cli -- \
 
 With `--step`, the CLI calls `Step(...)` repeatedly, appends one token each loop, and prints the growing decoded text.
 
+### 5) Predict Mode (next token only)
+
+Predict mode prints what the model thinks should come next for the current prompt. It runs one forward pass and shows the highest-probability next tokens without generating a full sentence. This is autocomplete over tokens, not a facts database.
+
+```bash
+dotnet run --project MiniGPTCSharp.Cli -- \
+  predict --prompt "The capital of France is" --topn 10 --temp 1.0 --topk 0
+```
+
 ---
 
 ## Final notes

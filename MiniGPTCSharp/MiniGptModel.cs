@@ -53,18 +53,7 @@ public class MiniGptModel
         // In GPT-style generation we always use all current tokens as context,
         // then only read logits from the final position to predict ONE next token.
         var context = currentTokenIds as IReadOnlyList<int> ?? currentTokenIds.ToList();
-        var embeddings = BuildEmbeddings(context);
-        var hidden = embeddings;
-
-        for (var i = 0; i < _layers.Count; i++)
-        {
-            hidden = _layers[i].Forward(hidden, context, Config);
-        }
-
-        var logits = BuildLogits(hidden, context);
-        var nextTokenLogits = Enumerable.Range(0, logits.Columns)
-            .Select(i => logits[0, i])
-            .ToArray();
+        var nextTokenLogits = ComputeNextTokenLogits(context);
 
         var candidateCount = Math.Clamp(topK, 1, nextTokenLogits.Length);
         var useGreedy = temperature <= 0f || candidateCount == 1;
@@ -113,13 +102,53 @@ public class MiniGptModel
         };
     }
 
-    public Dictionary<string, float> PredictNextTokens(string prompt, int count = 5)
+    public IReadOnlyList<NextTokenPrediction> PredictNextTokens(
+        string prompt,
+        int topN = 5,
+        float temperature = 1.0f,
+        int topKFilter = 0)
     {
         var tokens = Tokenizer.Encode(prompt);
-        var step = Step(tokens, Config.Temperature, Config.TopK, explain: false);
-        return step.TopK
-            .Take(count)
-            .ToDictionary(x => x.text, x => x.p);
+        var nextTokenLogits = ComputeNextTokenLogits(tokens);
+
+        var safeTemperature = temperature <= 0f ? 1f : temperature;
+        var logitsToUse = nextTokenLogits;
+
+        if (topKFilter > 0)
+        {
+            var topK = Math.Clamp(topKFilter, 1, logitsToUse.Length);
+            logitsToUse = ApplyTopKFilter(logitsToUse, topK);
+        }
+
+        var probabilities = Softmax(logitsToUse, safeTemperature);
+        var predictionCount = Math.Clamp(topN, 1, probabilities.Length);
+
+        return Enumerable.Range(0, probabilities.Length)
+            .Select(tokenId => new NextTokenPrediction
+            {
+                TokenId = tokenId,
+                TokenText = Tokenizer.TokenText(tokenId),
+                Probability = probabilities[tokenId]
+            })
+            .OrderByDescending(prediction => prediction.Probability)
+            .Take(predictionCount)
+            .ToList();
+    }
+
+    private float[] ComputeNextTokenLogits(IReadOnlyList<int> context)
+    {
+        var embeddings = BuildEmbeddings(context);
+        var hidden = embeddings;
+
+        for (var i = 0; i < _layers.Count; i++)
+        {
+            hidden = _layers[i].Forward(hidden, context, Config);
+        }
+
+        var logits = BuildLogits(hidden, context);
+        return Enumerable.Range(0, logits.Columns)
+            .Select(i => logits[0, i])
+            .ToArray();
     }
 
     private Tensor BuildEmbeddings(IReadOnlyList<int> tokens)
