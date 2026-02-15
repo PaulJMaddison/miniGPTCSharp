@@ -1,51 +1,84 @@
 using MiniGPTCSharp;
 
-if (args.Length == 0 || HasHelpFlag(args))
+var commands = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "predict",
+    "generate",
+    "step",
+    "learn"
+};
+
+var parsedArgs = StripDirectives(args);
+
+if (parsedArgs.Length == 0 || IsRootHelp(parsedArgs))
 {
     PrintHelp();
     Environment.ExitCode = 0;
     return;
 }
 
-if (args[0].Equals("help", StringComparison.OrdinalIgnoreCase))
+if (!commands.Contains(parsedArgs[0]))
 {
     PrintHelp();
-    Environment.ExitCode = 0;
+    Console.Error.WriteLine($"Unknown command: {parsedArgs[0]}");
+    Environment.ExitCode = 1;
     return;
 }
 
-if (args[0].Equals("predict", StringComparison.OrdinalIgnoreCase))
+if (parsedArgs[0].Equals("predict", StringComparison.OrdinalIgnoreCase))
 {
-    RunPredict(args);
+    if (HasHelpFlag(parsedArgs[1..]))
+    {
+        PrintPredictHelp();
+        return;
+    }
+
+    RunPredict(parsedArgs);
     return;
 }
 
-if (args[0].Equals("generate", StringComparison.OrdinalIgnoreCase))
+if (parsedArgs[0].Equals("generate", StringComparison.OrdinalIgnoreCase))
 {
-    RunGeneration(args[1..]);
+    if (HasHelpFlag(parsedArgs[1..]))
+    {
+        PrintGenerateHelp();
+        return;
+    }
+
+    RunGeneration(parsedArgs[1..]);
     return;
 }
 
-if (args[0].Equals("step", StringComparison.OrdinalIgnoreCase))
+if (parsedArgs[0].Equals("step", StringComparison.OrdinalIgnoreCase))
 {
-    RunGeneration(["--step", .. args[1..]]);
+    if (HasHelpFlag(parsedArgs[1..]))
+    {
+        PrintStepHelp();
+        return;
+    }
+
+    RunGeneration(["--step", .. parsedArgs[1..]]);
     return;
 }
 
-if (args[0].Equals("learn", StringComparison.OrdinalIgnoreCase) && args.Length > 1)
+if (parsedArgs[0].Equals("learn", StringComparison.OrdinalIgnoreCase))
 {
-    RunLearnMode(args[1]);
+    if (HasHelpFlag(parsedArgs[1..]))
+    {
+        PrintLearnHelp();
+        return;
+    }
+
+    if (parsedArgs.Length <= 1)
+    {
+        PrintLearnHelp();
+        Environment.ExitCode = 1;
+        return;
+    }
+
+    RunLearnMode(parsedArgs[1]);
     return;
 }
-
-if (args.Contains("--demo-sampling", StringComparer.OrdinalIgnoreCase))
-{
-    var prompt = GetOption(args, "--prompt") ?? "The capital of France is";
-    RunSamplingDemo(prompt);
-    return;
-}
-
-RunGeneration(args);
 
 static void RunGeneration(string[] args)
 {
@@ -312,6 +345,18 @@ static bool HasHelpFlag(string[] args)
     => args.Contains("--help", StringComparer.OrdinalIgnoreCase)
        || args.Contains("-h", StringComparer.OrdinalIgnoreCase);
 
+static bool IsDirectiveToken(string arg)
+    => arg.StartsWith("[", StringComparison.Ordinal) && arg.EndsWith("]", StringComparison.Ordinal);
+
+static string[] StripDirectives(string[] args)
+    => args.Where(arg => !IsDirectiveToken(arg)).ToArray();
+
+static bool IsRootHelp(string[] args)
+    => args.Length > 0
+       && (args[0].Equals("--help", StringComparison.OrdinalIgnoreCase)
+           || args[0].Equals("-h", StringComparison.OrdinalIgnoreCase)
+           || args[0].Equals("help", StringComparison.OrdinalIgnoreCase));
+
 static int ParseInt(string? value, int fallback) => int.TryParse(value, out var parsed) ? parsed : fallback;
 
 static int? ParseNullableInt(string? value) => int.TryParse(value, out var parsed) ? parsed : null;
@@ -461,10 +506,32 @@ static void PrintHelp()
     Console.WriteLine("  step --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain] [--show-logits] [--logits-topn n] [--logits-format raw|centered|scaled]");
     Console.WriteLine("  predict --prompt \"The capital of France is\" [--topn N] [--temp T] [--topk K] [--deterministic] [--explain]");
     Console.WriteLine("  learn attention|embeddings|sampling");
-    Console.WriteLine("  --demo-sampling [--prompt text]");
-    Console.WriteLine("  --prompt text [--step] [--explain] [--temperature n] [--top-k n] [--layers n] [--tokens n] [--seed n] [--deterministic]");
+    Console.WriteLine("Use --help or -h with any command for command-specific help.");
+    Console.WriteLine("System.CommandLine-style directives such as [diagram] are accepted.");
     Console.WriteLine("Break-the-model flags:");
     Console.WriteLine("  --no-attention --no-position --no-layernorm");
+}
+
+static void PrintGenerateHelp()
+{
+    Console.WriteLine("generate --prompt text [--tokens n|--max-new-tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain]");
+    Console.WriteLine("         [--show-logits] [--logits-topn n] [--logits-format raw|centered|scaled] [--no-attention] [--no-position] [--no-layernorm]");
+}
+
+static void PrintStepHelp()
+{
+    Console.WriteLine("step --prompt text [--tokens n|--max-new-tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain]");
+    Console.WriteLine("     [--show-logits] [--logits-topn n] [--logits-format raw|centered|scaled] [--no-attention] [--no-position] [--no-layernorm]");
+}
+
+static void PrintPredictHelp()
+{
+    Console.WriteLine("predict --prompt text [--topn N] [--temp T] [--topk K] [--deterministic] [--explain]");
+}
+
+static void PrintLearnHelp()
+{
+    Console.WriteLine("learn attention|embeddings|sampling");
 }
 
 enum LogitsDisplayFormat
