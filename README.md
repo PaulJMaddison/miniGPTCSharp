@@ -283,6 +283,22 @@ dotnet run --project src/MiniGPTSharp.CLI -- \
   --top-k 40
 ```
 
+### 4) Step Mode (one token at a time)
+
+Step Mode runs the same autocomplete loop, but exposes each next-token choice so you can inspect it.
+
+```bash
+dotnet run --project MiniGPTCSharp.Cli -- \
+  --prompt "The capital of France is" \
+  --max-new-tokens 5 \
+  --temperature 0.8 \
+  --top-k 5 \
+  --step \
+  --explain
+```
+
+With `--step`, the CLI calls `Step(...)` repeatedly, appends one token each loop, and prints the growing decoded text.
+
 ---
 
 ## Final notes

@@ -32,6 +32,7 @@ static void RunGeneration(string[] args)
 {
     var prompt = GetOption(args, "--prompt") ?? "The capital of France is";
     var explain = args.Contains("--explain", StringComparer.OrdinalIgnoreCase);
+    var stepMode = args.Contains("--step", StringComparer.OrdinalIgnoreCase);
 
     var config = new GptConfig
     {
@@ -45,10 +46,43 @@ static void RunGeneration(string[] args)
 
     var maxNewTokens = ParseInt(GetOption(args, "--max-new-tokens"), 8);
     var model = new MiniGptModel(config);
+
+    if (stepMode)
+    {
+        RunStepMode(model, prompt, maxNewTokens, explain);
+        return;
+    }
+
     var output = model.Generate(prompt, explain, maxNewTokens);
 
     Console.WriteLine("\n=== Final Output ===");
     Console.WriteLine(output);
+}
+
+static void RunStepMode(MiniGptModel model, string prompt, int maxNewTokens, bool explain)
+{
+    // Step mode is just the autocomplete loop with one explicit Step(...) call per token.
+    var tokens = model.Tokenizer.Encode(prompt);
+
+    Console.WriteLine("Step mode: generating one token at a time.");
+    Console.WriteLine($"Start text: {model.Tokenizer.Decode(tokens)}");
+
+    for (var i = 0; i < maxNewTokens; i++)
+    {
+        var step = model.Step(tokens, model.Config.Temperature, model.Config.TopK, explain);
+        tokens.Add(step.NextTokenId);
+
+        if (explain && !string.IsNullOrWhiteSpace(step.DebugText))
+        {
+            Console.WriteLine($"\n--- Step {i + 1} ---");
+            Console.Write(step.DebugText);
+        }
+
+        Console.WriteLine($"Text after step {i + 1}: {model.Tokenizer.Decode(tokens)}");
+    }
+
+    Console.WriteLine("\n=== Final Output ===");
+    Console.WriteLine(model.Tokenizer.Decode(tokens));
 }
 
 static void RunPredict(string prompt)
@@ -136,7 +170,7 @@ static void PrintHelp()
     Console.WriteLine("  predict \"The capital of France is\"");
     Console.WriteLine("  learn attention|embeddings|sampling");
     Console.WriteLine("  --demo-sampling [--prompt text]");
-    Console.WriteLine("  --prompt text [--explain] [--temperature n] [--top-k n] [--layers n] [--max-new-tokens n]");
+    Console.WriteLine("  --prompt text [--step] [--explain] [--temperature n] [--top-k n] [--layers n] [--max-new-tokens n]");
     Console.WriteLine("Break-the-model flags:");
     Console.WriteLine("  --no-attention --no-position --no-layernorm");
 }

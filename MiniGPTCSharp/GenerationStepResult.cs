@@ -1,16 +1,16 @@
 namespace MiniGPTCSharp;
 
-public class GenerationStepResult
+public sealed class GenerationStepResult
 {
-    public int SelectedTokenId;
+    public int NextTokenId { get; init; }
 
-    public string SelectedTokenText = string.Empty;
+    public string NextTokenText { get; init; } = string.Empty;
 
-    public Dictionary<string, float> TopKProbabilities = new();
+    public IReadOnlyList<(int id, string text, float p)> TopK { get; init; } = Array.Empty<(int id, string text, float p)>();
 
-    public Tensor Logits = new Tensor(1, 1);
+    public float Temperature { get; init; }
 
-    public Tensor AttentionWeights = new Tensor(1, 1);
+    public int TopKValue { get; init; }
 
-    public string DebugInfo = string.Empty;
+    public string DebugText { get; init; } = string.Empty;
 }
