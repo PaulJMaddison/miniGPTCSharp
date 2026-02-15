@@ -321,6 +321,17 @@ dotnet run --project MiniGPTCSharp.Cli -- \
   predict --prompt "The capital of France is" --topn 10 --temp 1.0 --topk 0
 ```
 
+## Performance Notes
+
+MiniGPTSharp is a learning project first, not a performance-tuned runtime.
+TorchSharp is a .NET binding over LibTorch (the native backend used by PyTorch), so tensor-heavy math executes in native code.
+That said, end-to-end speed can still differ from Python projects for reasons outside core kernels.
+- Python tooling may include optimization paths (for example JIT/compile workflows) that are different or unavailable in TorchSharp.
+- Interop boundaries, allocations, data loading, and many small operations can add noticeable overhead in managed apps.
+- Throughput/latency also depends heavily on your model size, prompt shape, hardware, and runtime settings.
+
+If you care about performance, benchmark on your machine and treat results as workload-dependent.
+
 ---
 
 ## Final notes
