@@ -1,5 +1,80 @@
 # MiniGPTSharp
 
+## What is an AI Model (in simple terms)?
+
+If you're a C# developer, the easiest way to think about a base AI model is:
+
+> A probability-based pattern generator that predicts the next token in a sequence based on learned relationships between tokens.
+
+### What it is **not**
+
+A base model is **not**:
+
+- thinking
+- deciding
+- planning
+- understanding
+- storing knowledge like a database
+- remembering documents or conversations
+
+It does not keep a hidden folder of full docs, chats, or source files.
+
+### What it **does** contain
+
+A trained model contains:
+
+- a vocabulary of tokens (words, code pieces, punctuation, symbols)
+- learned statistical patterns from training data
+- a very large set of internal numbers called **weights**
+
+You can think of weights as configuration values that capture how often certain tokens appear together, similar to how autocomplete learns common method chains.
+
+### Training (simple view)
+
+During training, the model sees many examples of token sequences and keeps adjusting its internal values so it gets better at predicting what usually comes next.
+
+After training, it does **not** store:
+
+- sentences
+- documents
+- conversations
+- the original training dataset
+
+It stores only learned patterns in its weights.
+
+### What happens at runtime
+
+When you send input text, the model:
+
+1. splits the input into tokens
+2. calculates which token is most likely to come next
+3. appends that token to the sequence
+4. repeats
+
+This is similar to IntelliSense repeatedly predicting the next method or variable name.
+
+### Why outputs can look "smart"
+
+A base model alone:
+
+- has no goals
+- does not plan
+- cannot check its own work
+- cannot decide what to do next
+- cannot pursue outcomes
+
+It only generates likely continuations of input.
+
+Most real-world "intelligent behavior" comes from software around the model, such as:
+
+- reinforcement learning from human feedback (RLHF)
+- agent frameworks
+- tool-use systems
+- orchestration logic
+- evaluation and retry loops
+
+These are software systems built around the model that interpret its output and decide what actions to take.
+
 MiniGPTSharp is a **C#/.NET educational re-implementation** of Andrej Karpathy's Python project, [minGPT](https://github.com/karpathy/minGPT).
 
 This project is built with **TorchSharp** and is designed to help C# developers understand how GPT-style models work internally.
