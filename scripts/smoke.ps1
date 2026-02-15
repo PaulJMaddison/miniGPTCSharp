@@ -1,19 +1,20 @@
-$ErrorActionPreference = 'Stop'
+param(
+  [string]$RepoRoot = "C:\MiniGPT",
+  [string]$Config = "Release"
+)
 
-$RepoRoot = Split-Path -Parent $PSScriptRoot
-$CliProj = Join-Path $RepoRoot "MiniGPTCSharp.Cli/MiniGPTCSharp.Cli.csproj"
+$ErrorActionPreference = "Stop"
 
-if (-not (Test-Path $CliProj)) {
-    throw "CLI project not found at $CliProj"
-}
+$CliProj = Join-Path $RepoRoot "MiniGPTSharp.Cli\MiniGPTSharp.Cli.csproj"
+
+if (!(Test-Path $CliProj)) { throw "CLI project not found: $CliProj" }
 
 Push-Location $RepoRoot
 try {
-    dotnet clean
-    dotnet restore
-    dotnet build -c Release
-    dotnet run --project $CliProj --configuration Release -- --prompt "Hello" --max-new-tokens 40 --seed 42
+  dotnet build (Join-Path $RepoRoot "miniGPTCSharp.sln") -c $Config | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw "build failed" }
+
+  dotnet run -c $Config --project $CliProj -- generate --prompt "Hello" --tokens 40 --seed 42 | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw "run failed" }
 }
-finally {
-    Pop-Location
-}
+finally { Pop-Location }
