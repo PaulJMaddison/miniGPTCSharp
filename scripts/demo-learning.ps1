@@ -1,6 +1,7 @@
 param(
-  [string]$CliProj = "C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj",
-  [string]$Config = "Release"
+  [string]$RepoRoot = "C:\MiniGPT",
+  [string]$CliProj  = "C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj",
+  [string]$Config   = "Release"
 )
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -13,23 +14,59 @@ function Run([string[]]$args) {
   if ($LASTEXITCODE -ne 0) { throw "Command failed." }
 }
 
-function Pause($title) {
+function Pause($title, $whatToLookFor) {
   Write-Host "`n$title" -ForegroundColor Yellow
+  if ($whatToLookFor) {
+    Write-Host $whatToLookFor -ForegroundColor DarkGray
+  }
   Read-Host "Press Enter to continue"
 }
 
-Pause "1) Predict: next-token probabilities"
-Run @("predict","--prompt","The capital of France is","--topn","10")
+Pause "0) Help / commands" @"
+Look for:
+- predict / generate / step
+- --explain flag
+- sampling controls (seed, temperature, top-k)
+"@
+Run @("--help")
 
-Pause "2) Deterministic generate: same output every time"
-Run @("generate","--prompt","Hello my name is","--tokens","40","--deterministic")
-Run @("generate","--prompt","Hello my name is","--tokens","40","--deterministic")
+Pause "1) Predict (model belief: next-token probabilities)" @"
+Look for:
+- tokenization (tokens + IDs)
+- logits -> softmax -> probabilities
+- top candidates (Paris is not always #1 — that's the lesson)
+"@
+Run @("predict","--prompt","The capital of France is","--topn","5","--explain")
 
-Pause "3) Seeded sampling: repeatable randomness"
-Run @("generate","--prompt","Hello my name is","--tokens","40","--seed","42")
-Run @("generate","--prompt","Hello my name is","--tokens","40","--seed","7")
+Pause "2) Deterministic generate (argmax: always pick #1)" @"
+Look for:
+- it explains deterministic argmax
+- it repeats the loop exactly N times
+"@
+Run @("generate","--prompt","The capital of France is","--tokens","10","--deterministic","--explain")
 
-Pause "4) Step + explain: watch token-by-token decisions"
-Run @("step","--prompt","Once upon a time","--tokens","10","--seed","123","--explain")
+Pause "3) Seeded sampling (repeatable randomness)" @"
+Look for:
+- it explains sampling vs argmax
+- seed makes output repeatable
+"@
+Run @("generate","--prompt","The capital of France is","--tokens","10","--seed","42","--explain")
+Run @("generate","--prompt","The capital of France is","--tokens","10","--seed","42","--explain")
 
-Write-Host "`nDone ✅" -ForegroundColor Green
+Pause "4) Different seed (same probabilities, different random choices)" @"
+Look for:
+- output differs because random draws differ
+- probabilities are the same distribution, but sampling picks different tokens
+"@
+Run @("generate","--prompt","The capital of France is","--tokens","10","--seed","7","--explain")
+
+Pause "5) Step mode (token-by-token, with explanations)" @"
+Look for each step:
+- forward pass -> logits -> softmax
+- chosen token + why
+- token appended to context
+This is the GPT loop: predict next token, append, repeat.
+"@
+Run @("step","--prompt","The capital of France is","--tokens","5","--seed","42","--explain")
+
+Write-Host "`nDone [OK]" -ForegroundColor Green
