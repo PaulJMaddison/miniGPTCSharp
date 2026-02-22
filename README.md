@@ -1,5 +1,38 @@
 # MiniGPTSharp
 
+MiniGPTSharp is a **small, readable GPT-style language model in C#** built for people who want to understand how text generation works—without wading through massive ML frameworks.
+
+## Why this project exists
+
+Most AI repos are either:
+- too abstract (lots of theory, not enough runnable code), or
+- too complex (production-scale stacks that hide the core ideas).
+
+MiniGPTSharp is the middle ground: a practical learning project where you can inspect tokenization, logits, softmax, and sampling behavior from a simple CLI.
+
+## Why use MiniGPTSharp
+
+- **Learn by running real commands**: `predict`, `step`, and `generate` expose how next-token selection actually happens.
+- **C#-first experience**: ideal if you live in .NET and want AI concepts in familiar language and tooling.
+- **Transparent internals**: model components are intentionally approachable so you can read and modify them.
+- **Great for teaching and demos**: seeded runs and deterministic mode make lessons reproducible.
+- **Fast onboarding**: beginner-friendly walkthrough scripts help students and teams get productive quickly.
+
+## Who it's for
+
+- **C# and .NET developers** curious about LLM fundamentals.
+- **Students and educators** teaching probability-driven generation.
+- **Engineering teams** that want a lightweight internal demo for AI onboarding.
+- **Hackers and tinkerers** who prefer understanding the mechanics over black-box usage.
+
+## What you can do with it
+
+- Explain token prediction and probability distributions in live workshops.
+- Compare deterministic argmax decoding vs seeded sampling.
+- Demonstrate how temperature/top-k alter output behavior.
+- Create classroom labs and internal training material using the included scripts.
+
+
 ## Student walkthrough script
 
 Students can run a guided walkthrough that prints live output and saves the full session to `walkthrough-output.txt`:
