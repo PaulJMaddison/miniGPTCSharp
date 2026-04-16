@@ -3,18 +3,21 @@ param(
   [string]$Config = "Release"
 )
 
+. (Join-Path $PSScriptRoot "Use-LocalDotNetEnv.ps1")
+Initialize-LocalDotNetEnv -RepoRoot $RepoRoot
+
 $ErrorActionPreference = "Stop"
 
-$CliProj = Join-Path $RepoRoot "MiniGPTSharp.Cli\MiniGPTSharp.Cli.csproj"
+$CliProj = Join-Path $RepoRoot "MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
 
 if (!(Test-Path $CliProj)) { throw "CLI project not found: $CliProj" }
 
 Push-Location $RepoRoot
 try {
-  dotnet build (Join-Path $RepoRoot "miniGPTCSharp.sln") -c $Config | Out-Host
+  Invoke-RepoDotNet -Arguments @("build", $CliProj, "-c", $Config) | Out-Host
   if ($LASTEXITCODE -ne 0) { throw "build failed" }
 
-  dotnet run -c $Config --project $CliProj -- generate --prompt "Hello" --tokens 40 --seed 42 | Out-Host
+  Invoke-RepoDotNet -Arguments @("run", "-c", $Config, "--project", $CliProj, "--", "generate", "--prompt", "Hello", "--tokens", "40", "--seed", "42") | Out-Host
   if ($LASTEXITCODE -ne 0) { throw "run failed" }
 }
 finally { Pop-Location }

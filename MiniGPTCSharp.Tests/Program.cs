@@ -1,8 +1,10 @@
 using MiniGPTCSharp.Tests.Golden;
+using MiniGPTCSharp.Tests;
 
 try
 {
     GoldenGenerationTests.RunAll();
+    PromptInspectionTests.RunAll();
     Console.WriteLine("All tests passed.");
     return 0;
 }

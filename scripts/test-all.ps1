@@ -5,13 +5,14 @@ param(
   [int]$Tokens      = 30
 )
 
+. (Join-Path $PSScriptRoot "Use-LocalDotNetEnv.ps1")
+Initialize-LocalDotNetEnv -RepoRoot $RepoRoot
+
 $ErrorActionPreference = "Stop"
 
 # Fix weird checkmark rendering in some terminals:
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# ==== EXACT filenames from your screenshots ====
-$SolutionPath = Join-Path $RepoRoot "miniGPTCSharp.sln"
 $CliProj      = Join-Path $RepoRoot "MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
 $TestsProj    = Join-Path $RepoRoot "MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj"
 
@@ -70,10 +71,10 @@ function Assert-NotEqual([string]$a, [string]$b, [string]$msg) {
 function Run-Cli([string[]]$argsArray) {
   Push-Location $RepoRoot
   try {
-    $cmd = @("dotnet","run","-c",$Config,"--project",$CliProj,"--") + $argsArray
+    $cmd = @("run","-c",$Config,"--project",$CliProj,"--") + $argsArray
     Write-Host "`n> $($cmd -join ' ')" -ForegroundColor Cyan
 
-    $out = & $cmd[0] $cmd[1..($cmd.Count-1)] 2>&1 | Out-String
+    $out = Invoke-RepoDotNet -Arguments $cmd 2>&1 | Out-String
     $code = $LASTEXITCODE
     if ($code -ne 0) { throw "dotnet run failed (exit $code). Output:`n$out" }
 
@@ -83,28 +84,22 @@ function Run-Cli([string[]]$argsArray) {
 }
 
 Write-Host "RepoRoot:  $RepoRoot" -ForegroundColor Yellow
-Write-Host "Solution:  $SolutionPath" -ForegroundColor Yellow
 Write-Host "CLI:       $CliProj" -ForegroundColor Yellow
 Write-Host "Tests:     $TestsProj" -ForegroundColor Yellow
 
 Require-Path $RepoRoot     "RepoRoot"
-Require-Path $SolutionPath "Solution (.sln)"
 Require-Path $CliProj      "CLI project (.csproj)"
-# Tests are optional; only required if you want dotnet test
+Require-Path $TestsProj    "Tests project (.csproj)"
 
-# 0) Clean + Restore + Build (solution)
+# 0) Clean + Build
 Push-Location $RepoRoot
 try {
   Write-Host "`n== Clean ==" -ForegroundColor Yellow
-  dotnet clean $SolutionPath | Out-Host
+  Invoke-RepoDotNet -Arguments @("clean", $CliProj, "-c", $Config) | Out-Host
   if ($LASTEXITCODE -ne 0) { throw "dotnet clean failed" }
 
-  Write-Host "`n== Restore ==" -ForegroundColor Yellow
-  dotnet restore $SolutionPath | Out-Host
-  if ($LASTEXITCODE -ne 0) { throw "dotnet restore failed" }
-
   Write-Host "`n== Build ($Config) ==" -ForegroundColor Yellow
-  dotnet build $SolutionPath -c $Config | Out-Host
+  Invoke-RepoDotNet -Arguments @("build", $TestsProj, "-c", $Config) | Out-Host
   if ($LASTEXITCODE -ne 0) { throw "dotnet build failed" }
 }
 finally { Pop-Location }
@@ -150,16 +145,26 @@ catch {
   Write-Host $_.Exception.Message -ForegroundColor DarkYellow
 }
 
-# 7) dotnet test (optional)
+# 7) Inspect pipeline should expose layers and predictions
+Write-Host "`nRunning inspect pipeline check..." -ForegroundColor Yellow
+$pipeline = Run-Cli @("inspect","pipeline","--prompt","The capital of France is","--dims","4","--attention-topn","3")
+Assert-Contains $pipeline "Embedding preview" "Inspect pipeline did not print embedding data"
+Assert-Contains $pipeline "Last-token attention by layer" "Inspect pipeline did not print attention data"
+Assert-Contains $pipeline "Top next-token predictions" "Inspect pipeline did not print predictions"
+
+# 8) Compare sampling should show deterministic and seeded variants
+Write-Host "`nRunning compare sampling check..." -ForegroundColor Yellow
+$compareSampling = Run-Cli @("compare","sampling","--prompt","The capital of France is","--tokens","6")
+Assert-Contains $compareSampling "Deterministic argmax" "Compare sampling did not print deterministic output"
+Assert-Contains $compareSampling "Seeded sampling (seed=42)" "Compare sampling did not print seed 42 output"
+Assert-Contains $compareSampling "Seeded sampling (seed=7)" "Compare sampling did not print seed 7 output"
+
+# 9) dotnet test
 Push-Location $RepoRoot
 try {
-  if (Test-Path $TestsProj) {
-    Write-Host "`n== dotnet test ==" -ForegroundColor Yellow
-    dotnet test $TestsProj -c $Config | Out-Host
-    if ($LASTEXITCODE -ne 0) { throw "dotnet test failed" }
-  } else {
-    Write-Host "`nNOTE: Tests project not found at $TestsProj; skipping dotnet test." -ForegroundColor DarkYellow
-  }
+  Write-Host "`n== dotnet test ==" -ForegroundColor Yellow
+  Invoke-RepoDotNet -Arguments @("test", $TestsProj, "-c", $Config, "--no-build", "--no-restore") | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw "dotnet test failed" }
 }
 finally { Pop-Location }
 

@@ -175,6 +175,59 @@ public class MiniGptModel
             .ToList();
     }
 
+    public PromptInspection InspectPrompt(
+        string prompt,
+        int predictionTopN = 5,
+        int attentionTopN = 3)
+    {
+        var pieces = Tokenizer.SplitTokens(prompt);
+        var knownFlags = pieces.Select(Tokenizer.HasToken).ToArray();
+        var tokens = Tokenizer.Encode(prompt);
+        var embeddings = BuildEmbeddings(tokens);
+        var hidden = embeddings;
+        var layers = new List<LayerAttentionInspection>(_layers.Count);
+
+        for (var i = 0; i < _layers.Count; i++)
+        {
+            hidden = _layers[i].Forward(hidden, tokens, Config);
+            var lastTokenWeights = ExtractLastTokenWeights(_layers[i].Attention.LastAttentionWeights);
+            var topTargets = lastTokenWeights
+                .Select((weight, tokenIndex) => new AttentionTargetInspection
+                {
+                    TokenIndex = tokenIndex,
+                    TokenText = tokenIndex < tokens.Count ? Tokenizer.TokenText(tokens[tokenIndex]) : "<out-of-range>",
+                    Weight = weight
+                })
+                .OrderByDescending(target => target.Weight)
+                .Take(Math.Clamp(attentionTopN, 1, Math.Max(1, lastTokenWeights.Count)))
+                .ToList();
+
+            layers.Add(new LayerAttentionInspection
+            {
+                LayerIndex = i,
+                LastTokenWeights = lastTokenWeights,
+                TopTargets = topTargets
+            });
+        }
+
+        var tokenInspections = tokens.Select((tokenId, index) => new TokenInspection
+        {
+            Position = index,
+            Text = pieces[index],
+            TokenId = tokenId,
+            WasAlreadyInVocabulary = knownFlags[index],
+            Embedding = ExtractTensorRow(embeddings, index)
+        }).ToList();
+
+        return new PromptInspection
+        {
+            Prompt = prompt,
+            Tokens = tokenInspections,
+            Layers = layers,
+            Predictions = PredictNextTokens(prompt, topN: predictionTopN, temperature: Config.Temperature, topKFilter: 0)
+        };
+    }
+
     private float[] ComputeNextTokenLogits(IReadOnlyList<int> context)
     {
         var embeddings = BuildEmbeddings(context);
@@ -322,5 +375,33 @@ public class MiniGptModel
         }
 
         return 0;
+    }
+
+    private static List<float> ExtractTensorRow(Tensor tensor, int row)
+    {
+        var values = new List<float>(tensor.Columns);
+        for (var column = 0; column < tensor.Columns; column++)
+        {
+            values.Add(tensor[row, column]);
+        }
+
+        return values;
+    }
+
+    private static List<float> ExtractLastTokenWeights(Tensor weights)
+    {
+        if (weights.Rows == 0 || weights.Columns == 0)
+        {
+            return new List<float>();
+        }
+
+        var row = weights.Rows - 1;
+        var values = new List<float>(weights.Columns);
+        for (var column = 0; column < weights.Columns; column++)
+        {
+            values.Add(weights[row, column]);
+        }
+
+        return values;
     }
 }

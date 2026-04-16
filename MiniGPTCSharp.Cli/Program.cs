@@ -5,7 +5,9 @@ var commands = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     "predict",
     "generate",
     "step",
-    "learn"
+    "learn",
+    "inspect",
+    "compare"
 };
 
 var parsedArgs = StripDirectives(args);
@@ -25,64 +27,93 @@ if (!commands.Contains(parsedArgs[0]))
     return;
 }
 
-if (parsedArgs[0].Equals("predict", StringComparison.OrdinalIgnoreCase))
+switch (parsedArgs[0].ToLowerInvariant())
 {
-    if (HasHelpFlag(parsedArgs[1..]))
-    {
-        PrintPredictHelp();
+    case "predict":
+        if (HasHelpFlag(parsedArgs[1..]))
+        {
+            PrintPredictHelp();
+            return;
+        }
+
+        RunPredict(parsedArgs);
         return;
-    }
 
-    RunPredict(parsedArgs);
-    return;
-}
+    case "generate":
+        if (HasHelpFlag(parsedArgs[1..]))
+        {
+            PrintGenerateHelp();
+            return;
+        }
 
-if (parsedArgs[0].Equals("generate", StringComparison.OrdinalIgnoreCase))
-{
-    if (HasHelpFlag(parsedArgs[1..]))
-    {
-        PrintGenerateHelp();
+        RunGeneration(parsedArgs[1..]);
         return;
-    }
 
-    RunGeneration(parsedArgs[1..]);
-    return;
-}
+    case "step":
+        if (HasHelpFlag(parsedArgs[1..]))
+        {
+            PrintStepHelp();
+            return;
+        }
 
-if (parsedArgs[0].Equals("step", StringComparison.OrdinalIgnoreCase))
-{
-    if (HasHelpFlag(parsedArgs[1..]))
-    {
-        PrintStepHelp();
+        RunGeneration(["--step", .. parsedArgs[1..]]);
         return;
-    }
 
-    RunGeneration(["--step", .. parsedArgs[1..]]);
-    return;
-}
+    case "learn":
+        if (HasHelpFlag(parsedArgs[1..]))
+        {
+            PrintLearnHelp();
+            return;
+        }
 
-if (parsedArgs[0].Equals("learn", StringComparison.OrdinalIgnoreCase))
-{
-    if (HasHelpFlag(parsedArgs[1..]))
-    {
-        PrintLearnHelp();
+        if (parsedArgs.Length <= 1)
+        {
+            PrintLearnHelp();
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        RunLearnMode(parsedArgs[1]);
         return;
-    }
 
-    if (parsedArgs.Length <= 1)
-    {
-        PrintLearnHelp();
-        Environment.ExitCode = 1;
+    case "inspect":
+        if (HasHelpFlag(parsedArgs[1..]))
+        {
+            PrintInspectHelp();
+            return;
+        }
+
+        if (parsedArgs.Length <= 1)
+        {
+            PrintInspectHelp();
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        RunInspectMode(parsedArgs[1], parsedArgs[2..]);
         return;
-    }
 
-    RunLearnMode(parsedArgs[1]);
-    return;
+    case "compare":
+        if (HasHelpFlag(parsedArgs[1..]))
+        {
+            PrintCompareHelp();
+            return;
+        }
+
+        if (parsedArgs.Length <= 1)
+        {
+            PrintCompareHelp();
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        RunCompareMode(parsedArgs[1], parsedArgs[2..]);
+        return;
 }
 
 static void RunGeneration(string[] args)
 {
-    var prompt = GetOption(args, "--prompt") ?? "The capital of France is";
+    var prompt = GetPrompt(args);
     var explain = args.Contains("--explain", StringComparer.OrdinalIgnoreCase);
     var stepMode = args.Contains("--step", StringComparer.OrdinalIgnoreCase);
     var showLogits = args.Contains("--show-logits", StringComparer.OrdinalIgnoreCase);
@@ -90,19 +121,8 @@ static void RunGeneration(string[] args)
     var logitsFormat = ParseLogitsFormat(GetOption(args, "--logits-format"));
     var deterministic = args.Contains("--deterministic", StringComparer.OrdinalIgnoreCase);
     var seed = ParseNullableInt(GetOption(args, "--seed"));
-
-    var config = new GptConfig
-    {
-        LayerCount = ParseInt(GetOption(args, "--layers"), 2),
-        TopK = ParseInt(GetOption(args, "--top-k"), 10),
-        Temperature = ParseFloat(GetOption(args, "--temperature"), 0.8f),
-        DisableAttention = args.Contains("--no-attention", StringComparer.OrdinalIgnoreCase),
-        DisablePositionEmbeddings = args.Contains("--no-position", StringComparer.OrdinalIgnoreCase),
-        DisableLayerNorm = args.Contains("--no-layernorm", StringComparer.OrdinalIgnoreCase)
-    };
-
     var tokensRequested = ParseInt(GetOption(args, "--tokens") ?? GetOption(args, "--max-new-tokens"), 8);
-    var model = new MiniGptModel(config);
+    var model = new MiniGptModel(BuildConfig(args));
 
     if (deterministic)
     {
@@ -183,7 +203,6 @@ static void RunStepMode(
     int logitsTopN,
     LogitsDisplayFormat logitsFormat)
 {
-    // Step mode is just the autocomplete loop with one explicit Step(...) call per token.
     var tokens = model.Tokenizer.Encode(prompt);
     Random? rng = deterministic ? null : seed.HasValue ? new Random(seed.Value) : new Random();
 
@@ -195,10 +214,7 @@ static void RunStepMode(
         PrintPipelineIntro(prompt, tokens, model.Tokenizer, deterministic, seed);
     }
 
-    var newTokensToGenerate = tokensRequested;
-    var generated = 0;
-
-    while (generated < newTokensToGenerate)
+    for (var generated = 0; generated < tokensRequested; generated++)
     {
         var step = model.Step(
             tokens,
@@ -225,7 +241,6 @@ static void RunStepMode(
         }
 
         Console.WriteLine($"Text after step {generated + 1}: {model.Tokenizer.Decode(tokens)}");
-        generated++;
     }
 
     Console.WriteLine("\n=== Final Output ===");
@@ -234,14 +249,7 @@ static void RunStepMode(
 
 static void RunPredict(string[] args)
 {
-    var prompt = GetOption(args, "--prompt");
-    if (string.IsNullOrWhiteSpace(prompt) && args.Length > 1 && !args[1].StartsWith("--", StringComparison.Ordinal))
-    {
-        prompt = args[1];
-    }
-
-    prompt ??= "The capital of France is";
-
+    var prompt = GetPrompt(args);
     var topN = ParseInt(GetOption(args, "--topn"), 5);
     var temperature = ParseFloat(GetOption(args, "--temp"), 1.0f);
     var topKFilter = ParseInt(GetOption(args, "--topk"), 0);
@@ -281,53 +289,265 @@ static void RunPredict(string[] args)
     }
 }
 
-static void RunSamplingDemo(string prompt)
+static void RunInspectMode(string topic, string[] args)
 {
-    var temperatures = new[] { 0.2f, 0.8f, 1.5f };
-    var topKs = new[] { 1, 10, 50 };
+    var prompt = GetPrompt(args);
+    var config = BuildConfig(args);
+    var model = new MiniGptModel(config);
+    var predictionTopN = ParseInt(GetOption(args, "--topn"), 5);
+    var attentionTopN = ParseInt(GetOption(args, "--attention-topn"), 5);
+    var dimsToShow = ParseInt(GetOption(args, "--dims"), Math.Min(8, config.EmbeddingSize));
+    var inspection = model.InspectPrompt(prompt, predictionTopN, attentionTopN);
 
-    Console.WriteLine($"Sampling demo prompt: {prompt}\n");
-
-    foreach (var temp in temperatures)
+    switch (topic.ToLowerInvariant())
     {
-        foreach (var topK in topKs)
-        {
-            var model = new MiniGptModel(new GptConfig { Temperature = temp, TopK = topK, LayerCount = 2 }, seed: 777);
-            var generated = model.Generate(prompt, explain: false, maxNewTokens: 6, seed: 777);
-            Console.WriteLine($"temperature={temp:0.0}, top-k={topK,-2} => {generated}");
-        }
-
-        Console.WriteLine();
+        case "tokens":
+            PrintTokenInspection(inspection);
+            return;
+        case "embeddings":
+            PrintTokenInspection(inspection);
+            Console.WriteLine();
+            PrintEmbeddingInspection(inspection, dimsToShow);
+            return;
+        case "attention":
+            PrintTokenInspection(inspection);
+            Console.WriteLine();
+            PrintAttentionInspection(inspection);
+            return;
+        case "pipeline":
+            PrintPipelineInspection(inspection, dimsToShow);
+            return;
+        default:
+            Console.WriteLine($"Unknown inspect topic: {topic}");
+            Console.WriteLine("Try: tokens, embeddings, attention, pipeline");
+            Environment.ExitCode = 1;
+            return;
     }
+}
+
+static void RunCompareMode(string topic, string[] args)
+{
+    var prompt = GetPrompt(args);
+    var tokensToGenerate = ParseInt(GetOption(args, "--tokens"), 8);
+
+    switch (topic.ToLowerInvariant())
+    {
+        case "sampling":
+            RunSamplingComparison(prompt, tokensToGenerate);
+            return;
+        case "ablation":
+            RunAblationComparison(prompt, tokensToGenerate);
+            return;
+        default:
+            Console.WriteLine($"Unknown compare topic: {topic}");
+            Console.WriteLine("Try: sampling, ablation");
+            Environment.ExitCode = 1;
+            return;
+    }
+}
+
+static void RunSamplingComparison(string prompt, int tokensToGenerate)
+{
+    var model = new MiniGptModel();
+    var predictions = model.PredictNextTokens(prompt, topN: 5, temperature: 1.0f, topKFilter: 0);
+    var deterministic = model.Generate(prompt, maxNewTokens: tokensToGenerate, deterministic: true);
+    var seed42 = model.Generate(prompt, maxNewTokens: tokensToGenerate, seed: 42);
+    var seed7 = model.Generate(prompt, maxNewTokens: tokensToGenerate, seed: 7);
+
+    Console.WriteLine("Comparison mode: sampling");
+    Console.WriteLine($"Prompt: \"{prompt}\"");
+    Console.WriteLine();
+    Console.WriteLine("Top next-token beliefs:");
+    for (var i = 0; i < predictions.Count; i++)
+    {
+        Console.WriteLine($"  {i + 1}) {predictions[i].TokenText,-10} p={predictions[i].Probability:P2}");
+    }
+
+    Console.WriteLine();
+    Console.WriteLine("Deterministic argmax:");
+    Console.WriteLine($"  {deterministic}");
+
+    Console.WriteLine("Seeded sampling (seed=42):");
+    Console.WriteLine($"  {seed42}");
+
+    Console.WriteLine("Seeded sampling (seed=7):");
+    Console.WriteLine($"  {seed7}");
+
+    Console.WriteLine();
+    Console.WriteLine("What this teaches:");
+    Console.WriteLine("- Predict shows the belief distribution.");
+    Console.WriteLine("- Deterministic generation always follows the highest-probability path.");
+    Console.WriteLine("- Sampling can choose different but still plausible continuations.");
+}
+
+static void RunAblationComparison(string prompt, int tokensToGenerate)
+{
+    var runs = new[]
+    {
+        new
+        {
+            Label = "Baseline",
+            Config = new GptConfig { LayerCount = 2, TopK = 10, Temperature = 0.8f }
+        },
+        new
+        {
+            Label = "No attention",
+            Config = new GptConfig { LayerCount = 2, TopK = 10, Temperature = 0.8f, DisableAttention = true }
+        },
+        new
+        {
+            Label = "No position embeddings",
+            Config = new GptConfig { LayerCount = 2, TopK = 10, Temperature = 0.8f, DisablePositionEmbeddings = true }
+        },
+        new
+        {
+            Label = "No layer norm",
+            Config = new GptConfig { LayerCount = 2, TopK = 10, Temperature = 0.8f, DisableLayerNorm = true }
+        }
+    };
+
+    Console.WriteLine("Comparison mode: ablation");
+    Console.WriteLine($"Prompt: \"{prompt}\"");
+    Console.WriteLine();
+
+    foreach (var run in runs)
+    {
+        var model = new MiniGptModel(run.Config);
+        var generated = model.Generate(prompt, maxNewTokens: tokensToGenerate, deterministic: true);
+        Console.WriteLine($"{run.Label}:");
+        Console.WriteLine($"  {generated}");
+    }
+
+    Console.WriteLine();
+    Console.WriteLine("What this teaches:");
+    Console.WriteLine("- Attention helps the model reuse earlier tokens as context.");
+    Console.WriteLine("- Position embeddings help it distinguish order.");
+    Console.WriteLine("- Layer norm stabilizes the internal signal across layers.");
 }
 
 static void RunLearnMode(string topic)
 {
     switch (topic.ToLowerInvariant())
     {
-        case "attention":
-            Console.WriteLine("Learning mode: attention");
-            Console.WriteLine("We will run one generation step and show which earlier tokens the model focuses on.");
-            RunGeneration(new[] { "--prompt", "The capital of France is", "--explain", "--tokens", "1" });
-            break;
+        case "tokenization":
+            Console.WriteLine("Learning mode: tokenization");
+            RunInspectMode("tokens", ["--prompt", "The capital of France is Paris."]);
+            return;
 
         case "embeddings":
             Console.WriteLine("Learning mode: embeddings");
-            Console.WriteLine("Embeddings convert token IDs into vectors that the model can compare mathematically.");
-            RunGeneration(new[] { "--prompt", "AI model learning", "--explain", "--layers", "0", "--tokens", "1" });
-            break;
+            RunInspectMode("embeddings", ["--prompt", "AI model learning", "--layers", "0", "--dims", "8"]);
+            return;
+
+        case "attention":
+            Console.WriteLine("Learning mode: attention");
+            RunInspectMode("attention", ["--prompt", "The capital of France is Paris", "--attention-topn", "5"]);
+            return;
 
         case "sampling":
             Console.WriteLine("Learning mode: sampling");
-            Console.WriteLine("Sampling chooses the next token from probabilities instead of always picking the top one.");
-            RunSamplingDemo("The capital of France is");
-            break;
+            RunCompareMode("sampling", ["--prompt", "The capital of France is", "--tokens", "8"]);
+            return;
+
+        case "ablation":
+            Console.WriteLine("Learning mode: ablation");
+            RunCompareMode("ablation", ["--prompt", "The capital of France is", "--tokens", "8"]);
+            return;
 
         default:
             Console.WriteLine($"Unknown learning topic: {topic}");
-            Console.WriteLine("Try: attention, embeddings, sampling");
-            break;
+            Console.WriteLine("Try: tokenization, embeddings, attention, sampling, ablation");
+            Environment.ExitCode = 1;
+            return;
     }
+}
+
+static void PrintTokenInspection(PromptInspection inspection)
+{
+    Console.WriteLine($"Prompt: \"{inspection.Prompt}\"");
+    Console.WriteLine($"Token count: {inspection.Tokens.Count}");
+    Console.WriteLine("Tokens:");
+    foreach (var token in inspection.Tokens)
+    {
+        var source = token.WasAlreadyInVocabulary ? "seeded vocab" : "added at runtime";
+        Console.WriteLine($"  pos={token.Position,-2} text={token.Text,-12} id={token.TokenId,-3} source={source}");
+    }
+}
+
+static void PrintEmbeddingInspection(PromptInspection inspection, int dimsToShow)
+{
+    Console.WriteLine("Embedding preview:");
+    foreach (var token in inspection.Tokens)
+    {
+        var preview = token.Embedding
+            .Take(Math.Clamp(dimsToShow, 1, token.Embedding.Count))
+            .Select(value => value.ToString("0.000"))
+            .ToArray();
+        Console.WriteLine($"  pos={token.Position,-2} text={token.Text,-12} [{string.Join(", ", preview)}]");
+    }
+}
+
+static void PrintAttentionInspection(PromptInspection inspection)
+{
+    if (inspection.Layers.Count == 0)
+    {
+        Console.WriteLine("No transformer layers are active, so there are no attention weights to inspect.");
+        return;
+    }
+
+    Console.WriteLine("Last-token attention by layer:");
+    foreach (var layer in inspection.Layers)
+    {
+        Console.WriteLine($"Layer {layer.LayerIndex}:");
+        foreach (var target in layer.TopTargets)
+        {
+            Console.WriteLine($"  token[{target.TokenIndex}]={target.TokenText,-12} weight={target.Weight:0.000}");
+        }
+    }
+}
+
+static void PrintPipelineInspection(PromptInspection inspection, int dimsToShow)
+{
+    PrintTokenInspection(inspection);
+    Console.WriteLine();
+    PrintEmbeddingInspection(inspection, dimsToShow);
+    Console.WriteLine();
+    PrintAttentionInspection(inspection);
+    Console.WriteLine();
+    Console.WriteLine("Top next-token predictions:");
+    for (var i = 0; i < inspection.Predictions.Count; i++)
+    {
+        Console.WriteLine($"  {i + 1}) {inspection.Predictions[i].TokenText,-10} p={inspection.Predictions[i].Probability:P2}");
+    }
+}
+
+static GptConfig BuildConfig(string[] args)
+{
+    return new GptConfig
+    {
+        LayerCount = ParseInt(GetOption(args, "--layers"), 2),
+        TopK = ParseInt(GetOption(args, "--top-k"), 10),
+        Temperature = ParseFloat(GetOption(args, "--temperature"), 0.8f),
+        DisableAttention = args.Contains("--no-attention", StringComparer.OrdinalIgnoreCase),
+        DisablePositionEmbeddings = args.Contains("--no-position", StringComparer.OrdinalIgnoreCase),
+        DisableLayerNorm = args.Contains("--no-layernorm", StringComparer.OrdinalIgnoreCase)
+    };
+}
+
+static string GetPrompt(string[] args)
+{
+    var prompt = GetOption(args, "--prompt");
+    if (string.IsNullOrWhiteSpace(prompt))
+    {
+        var startIndex = args.Length > 0 && IsCommandToken(args[0]) ? 1 : 0;
+        var firstValue = Array.FindIndex(args, startIndex, a => !a.StartsWith("--", StringComparison.Ordinal));
+        if (firstValue >= 0)
+        {
+            prompt = args[firstValue];
+        }
+    }
+
+    return string.IsNullOrWhiteSpace(prompt) ? "The capital of France is" : prompt;
 }
 
 static string? GetOption(string[] args, string option)
@@ -357,6 +577,14 @@ static bool IsRootHelp(string[] args)
            || args[0].Equals("-h", StringComparison.OrdinalIgnoreCase)
            || args[0].Equals("help", StringComparison.OrdinalIgnoreCase));
 
+static bool IsCommandToken(string arg)
+    => arg.Equals("predict", StringComparison.OrdinalIgnoreCase)
+       || arg.Equals("generate", StringComparison.OrdinalIgnoreCase)
+       || arg.Equals("step", StringComparison.OrdinalIgnoreCase)
+       || arg.Equals("learn", StringComparison.OrdinalIgnoreCase)
+       || arg.Equals("inspect", StringComparison.OrdinalIgnoreCase)
+       || arg.Equals("compare", StringComparison.OrdinalIgnoreCase);
+
 static int ParseInt(string? value, int fallback) => int.TryParse(value, out var parsed) ? parsed : fallback;
 
 static int? ParseNullableInt(string? value) => int.TryParse(value, out var parsed) ? parsed : null;
@@ -378,8 +606,6 @@ static LogitsDisplayFormat ParseLogitsFormat(string? value)
         _ => LogitsDisplayFormat.Raw
     };
 }
-
-
 
 static void PrintPipelineIntro(string prompt, IReadOnlyList<int> tokens, VocabularyTokenizer tokenizer, bool deterministic, int? seed)
 {
@@ -503,11 +729,12 @@ static void PrintHelp()
     Console.WriteLine("MiniGPTSharp learning CLI");
     Console.WriteLine("Commands:");
     Console.WriteLine("  generate --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain]");
-    Console.WriteLine("  step --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain] [--show-logits] [--logits-topn n] [--logits-format raw|centered|scaled]");
-    Console.WriteLine("  predict --prompt \"The capital of France is\" [--topn N] [--temp T] [--topk K] [--deterministic] [--explain]");
-    Console.WriteLine("  learn attention|embeddings|sampling");
+    Console.WriteLine("  step --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain] [--show-logits]");
+    Console.WriteLine("  predict --prompt text [--topn N] [--temp T] [--topk K] [--deterministic] [--explain]");
+    Console.WriteLine("  inspect tokens|embeddings|attention|pipeline --prompt text");
+    Console.WriteLine("  compare sampling|ablation --prompt text [--tokens n]");
+    Console.WriteLine("  learn tokenization|embeddings|attention|sampling|ablation");
     Console.WriteLine("Use --help or -h with any command for command-specific help.");
-    Console.WriteLine("System.CommandLine-style directives such as [diagram] are accepted.");
     Console.WriteLine("Break-the-model flags:");
     Console.WriteLine("  --no-attention --no-position --no-layernorm");
 }
@@ -529,9 +756,19 @@ static void PrintPredictHelp()
     Console.WriteLine("predict --prompt text [--topn N] [--temp T] [--topk K] [--deterministic] [--explain]");
 }
 
+static void PrintInspectHelp()
+{
+    Console.WriteLine("inspect tokens|embeddings|attention|pipeline --prompt text [--dims N] [--topn N] [--attention-topn N] [--layers n]");
+}
+
+static void PrintCompareHelp()
+{
+    Console.WriteLine("compare sampling|ablation --prompt text [--tokens n]");
+}
+
 static void PrintLearnHelp()
 {
-    Console.WriteLine("learn attention|embeddings|sampling");
+    Console.WriteLine("learn tokenization|embeddings|attention|sampling|ablation");
 }
 
 enum LogitsDisplayFormat

@@ -21,6 +21,8 @@ public class VocabularyTokenizer
 
     public IReadOnlyDictionary<int, string> Vocabulary => _idToToken;
 
+    public bool HasToken(string token) => _tokenToId.ContainsKey(token);
+
     public List<string> SplitTokens(string text)
     {
         if (string.IsNullOrWhiteSpace(text))

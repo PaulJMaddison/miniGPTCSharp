@@ -4,13 +4,16 @@ param(
   [string]$Config   = "Release"
 )
 
+. (Join-Path $PSScriptRoot "Use-LocalDotNetEnv.ps1")
+Initialize-LocalDotNetEnv -RepoRoot $RepoRoot
+
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = "Stop"
 
 function Run([string[]]$cliArgs) {
-  $cmd = @("dotnet","run","-c",$Config,"--project",$CliProj,"--") + $cliArgs
+  $cmd = @("run","-c",$Config,"--project",$CliProj,"--") + $cliArgs
   Write-Host "`n> $($cmd -join ' ')" -ForegroundColor Cyan
-  & $cmd[0] $cmd[1..($cmd.Count-1)]
+  Invoke-RepoDotNet -Arguments $cmd
   if ($LASTEXITCODE -ne 0) { throw "Command failed." }
 }
 

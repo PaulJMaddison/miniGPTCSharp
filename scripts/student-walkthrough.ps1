@@ -5,6 +5,9 @@ param(
   [string]$OutFile  = "walkthrough-output.txt"
 )
 
+. (Join-Path $PSScriptRoot "Use-LocalDotNetEnv.ps1")
+Initialize-LocalDotNetEnv -RepoRoot $RepoRoot
+
 # Console output as UTF-8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = "Stop"
@@ -33,7 +36,7 @@ function Write-Both([string]$text) {
 }
 
 function Run([string[]]$cliArgs, [string]$title) {
-  $cmd = @("dotnet","run","-c",$Config,"--project",$CliProj,"--") + $cliArgs
+  $cmd = @("run","-c",$Config,"--project",$CliProj,"--") + $cliArgs
   $cmdLine = "> " + ($cmd -join ' ')
 
   Write-Both ""
@@ -42,7 +45,7 @@ function Run([string[]]$cliArgs, [string]$title) {
   Write-Both ""
 
   # Capture ALL output, then sanitize it before writing to file.
-  $raw = & $cmd[0] $cmd[1..($cmd.Count-1)] 2>&1 | Out-Strin
+  $raw = Invoke-RepoDotNet -Arguments $cmd 2>&1 | Out-String
   $code = $LASTEXITCODE
 
   $out = Strip-Nul ($raw.TrimEnd())
@@ -94,6 +97,14 @@ Goal:
 "@
 Run @("predict","--prompt","The capital of France is","--topn","5","--explain") "Predict (top 5)"
 
+Pause "1b) Inspect pipeline (what the model is looking at)" @"
+Goal:
+- See token pieces and IDs
+- Preview embedding values
+- See which earlier tokens the last token attends to
+"@
+Run @("inspect","pipeline","--prompt","The capital of France is","--dims","6","--attention-topn","5") "Inspect pipeline"
+
 Pause "2) Deterministic generate (argmax)" @"
 Goal:
 - Greedy decoding: always pick the highest-probability token each step
@@ -116,6 +127,13 @@ Goal:
 "@
 Run @("generate","--prompt","The capital of France is","--tokens","8","--seed","7","--explain") "Generate seed=7"
 
+Pause "4b) Compare sampling side-by-side" @"
+Goal:
+- Compare beliefs, argmax, and seeded sampling in one place
+- Build the mental model: predict != choose
+"@
+Run @("compare","sampling","--prompt","The capital of France is","--tokens","8") "Compare sampling"
+
 Pause "5) Step mode (token-by-token teaching loop)" @"
 Goal:
 - Watch the core GPT loop:
@@ -126,6 +144,13 @@ Goal:
   5) repeat
 "@
 Run @("step","--prompt","The capital of France is","--tokens","5","--seed","42","--explain","--show-logits","--logits-topn","10","--logits-format","raw") "Step mode (seed=42)"
+
+Pause "6) Compare ablations (break parts of the toy model on purpose)" @"
+Goal:
+- See how outputs change when attention, position, or layer norm are removed
+- Understand that architecture choices affect behavior
+"@
+Run @("compare","ablation","--prompt","The capital of France is","--tokens","8") "Compare ablations"
 
 Write-Both ""
 Write-Both "Done [OK]"
