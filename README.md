@@ -1,7 +1,7 @@
 # MiniGPTSharp
 
 [![Build and Test](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/dotnet-ci.yml/badge.svg?branch=main)](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/dotnet-ci.yml)
-[![Static Showcase](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/pages.yml)
+[![Live Showcase](https://img.shields.io/badge/live%20showcase-GitHub%20Pages-24b58f)](https://pauljmaddison.github.io/miniGPTCSharp/)
 ![Tests](https://img.shields.io/badge/tests-xUnit%20%2B%20CLI%20smoke-blue)
 ![Status](https://img.shields.io/badge/status-portfolio%20demo-success)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
@@ -29,13 +29,13 @@ It is a toy model, not a production model. That is the point.
 
 The repo now includes a static GitHub Pages showcase in [`site`](site). It is designed to be hosted for free from a public GitHub repository and gives clients a polished first impression before they clone anything.
 
-Expected Pages URL after the workflow runs:
+Live showcase:
 
 ```text
 https://pauljmaddison.github.io/miniGPTCSharp/
 ```
 
-The static showcase is intentionally frontend-only. The full GPT Microscope experience still lives in [`MiniGPTCSharp.Web`](MiniGPTCSharp.Web), where ASP.NET Core serves the live inspection APIs.
+The static showcase is intentionally frontend-only and is published from the `gh-pages` branch. The full GPT Microscope experience still lives in [`MiniGPTCSharp.Web`](MiniGPTCSharp.Web), where ASP.NET Core serves the live inspection APIs.
 
 ## Quick Start
 
@@ -478,13 +478,19 @@ See [SECURITY.md](SECURITY.md) for the full local-first note.
 
 ## GitHub Pages Hosting
 
-The static showcase is published by [`.github/workflows/pages.yml`](.github/workflows/pages.yml). To make it live:
+The static showcase source lives in [`site`](site). The public GitHub Pages site is published from the `gh-pages` branch root so it can serve without a build step.
 
-1. Push the workflow and `site` folder to `main`.
-2. Open the repository settings on GitHub.
-3. Go to **Pages**.
-4. Set the source to **GitHub Actions** if it is not already selected.
-5. Run the `Deploy static showcase` workflow.
+To republish after editing `site`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-pages.ps1 -ConfigurePages
+```
+
+Repository settings should use:
+
+- Source: **Deploy from a branch**
+- Branch: `gh-pages`
+- Folder: `/`
 
 GitHub Pages can host this static site for free from a public repository. It will not run the ASP.NET Core app itself, so use separate app hosting if you want the live backend available on the internet.
 

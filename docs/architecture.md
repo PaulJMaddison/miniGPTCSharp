@@ -26,7 +26,6 @@ ROADMAP.md                      Product and engineering improvement path
 SECURITY.md                     Local-first behavior and security scope
 .github/workflows/
   dotnet-ci.yml                 Windows .NET build/test workflow
-  pages.yml                     GitHub Pages static showcase deployment
 ```
 
 ## Core Library
@@ -75,7 +74,7 @@ The web project depends on the core library rather than reimplementing model beh
 
 - `site` sells and previews the project with static HTML, CSS, JavaScript, and assets.
 - `MiniGPTCSharp.Web` runs the real local ASP.NET Core API-backed playground.
-- `.github/workflows/pages.yml` publishes `site` through GitHub Pages.
+- `scripts/publish-pages.ps1` publishes `site` to the `gh-pages` branch for GitHub Pages.
 
 This split keeps the public portfolio page free and easy to host while preserving the richer app experience for local demos or separate app hosting.
 
@@ -100,6 +99,7 @@ The scripts are optimized for Windows teaching environments while still working 
 - `student-walkthrough.ps1` runs a pause-driven instructor walkthrough and writes a transcript.
 - `demo-learning.ps1` is a compact interactive demo script.
 - `demo-report.ps1` generates `artifacts/demo-report.html` through the CLI report command.
+- `publish-pages.ps1` publishes the static brochure site from `site` to the `gh-pages` branch.
 
 ## CI
 
@@ -113,6 +113,7 @@ The repo includes a small portfolio layer around the implementation:
 - `docs/showcase.md` explains the commercial value of explainable AI tooling.
 - `docs/assets` stores README and release visuals.
 - `scripts/capture-showcase-assets.ps1` starts the web playground for screenshot and GIF capture.
+- `scripts/publish-pages.ps1` republishes the static brochure site.
 - `ROADMAP.md` communicates where the demo can grow next.
 - `SECURITY.md` makes the local-first, no-external-model-calls behavior explicit.
 

@@ -4,7 +4,7 @@ MiniGPTSharp is already useful as a teaching and portfolio demo. The next improv
 
 ## Near Term
 
-- Publish the static GitHub Pages showcase and link it from the repository About section.
+- Add a custom domain or branded short link for the GitHub Pages showcase if this becomes a primary sales asset.
 - Add captured screenshots for the README: desktop playground, mobile playground, generated report.
 - Add a short animated demo GIF showing prompt inspection, probability updates, and report export.
 - Add example prompt presets for repeatable demos.

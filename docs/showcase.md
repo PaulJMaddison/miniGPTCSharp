@@ -68,6 +68,8 @@ https://pauljmaddison.github.io/miniGPTCSharp/
 
 That site is intentionally static, so it can be hosted for free from GitHub Pages. It previews the product story, visual design, demo data, and run commands. The local ASP.NET Core app remains the full interactive version.
 
+The source files live in `site` and are published to the `gh-pages` branch with `scripts/publish-pages.ps1`.
+
 ## What To Point Out In A Demo
 
 - The same core C# model powers CLI, reports, tests, and web.
