@@ -1,6 +1,6 @@
 # Architecture
 
-MiniGPTSharp is intentionally small: one library, one CLI, one test project, and a few PowerShell scripts. The design goal is to make GPT-style mechanics visible enough for teaching while keeping the repo credible as a .NET portfolio sample.
+MiniGPTSharp is intentionally small: one model library, one teaching CLI, one ASP.NET Core playground, one test project, and a few PowerShell scripts. The design goal is to make GPT-style mechanics visible enough for teaching while keeping the repo credible as a .NET portfolio sample.
 
 ## Solution Layout
 
@@ -9,6 +9,8 @@ MiniGPTCSharp/
   MiniGPTCSharp.csproj          Core toy model library
 MiniGPTCSharp.Cli/
   MiniGPTCSharp.Cli.csproj      Teaching-oriented command-line interface
+MiniGPTCSharp.Web/
+  MiniGPTCSharp.Web.csproj      GPT Microscope web playground
 MiniGPTCSharp.Tests/
   MiniGPTCSharp.Tests.csproj    xUnit regression tests
 scripts/
@@ -22,13 +24,14 @@ docs/
 
 ## Core Library
 
-`MiniGPTCSharp` contains the model and the inspection types used by the CLI.
+`MiniGPTCSharp` contains the model and the inspection/export types used by the CLI and web playground.
 
 - `MiniGptModel` orchestrates tokenization, embeddings, transformer blocks, logits, sampling, generation, and prompt inspection.
 - `VocabularyTokenizer` owns the tiny seed vocabulary and adds unknown prompt tokens at runtime so learners can see token IDs change.
 - `Tensor`, `SelfAttention`, and `TransformerBlock` keep the model math visible without pulling in a machine-learning framework.
 - `GptConfig` exposes teaching toggles such as layer count, top-k, temperature, disabled attention, disabled position embeddings, and disabled layer normalization.
 - `PromptInspection`, `NextTokenPrediction`, and `GenerationStepResult` are small DTOs that let the CLI print internals without duplicating model logic.
+- `ExportDtos`, `MiniGptExports`, and `MiniGptHtmlReport` provide stable JSON/report shapes for automation and portfolio artifacts.
 
 The library favors deterministic, inspectable behavior over realism. It is not a production inference runtime.
 
@@ -42,9 +45,22 @@ The library favors deterministic, inspectable behavior over realism. It is not a
 - `inspect` exposes tokens, embeddings, attention, or the full pipeline.
 - `compare sampling` contrasts probabilities, argmax, and seeded sampling.
 - `compare ablation` shows how output changes when parts of the toy architecture are disabled.
+- `report` writes a standalone HTML report for a prompt.
 - `learn` gives students curated entry points for common topics.
 
 The CLI is intentionally verbose in explanation modes because its primary job is to make the mental model observable.
+
+JSON output is available for `predict`, `inspect`, and `compare` so tests, scripts, and external tools can consume stable camelCase shapes instead of parsing console prose.
+
+## Web Playground
+
+`MiniGPTCSharp.Web` is the GPT Microscope playground. It uses ASP.NET Core minimal APIs and static assets under `wwwroot`.
+
+- `/health` returns a simple health payload for smoke checks.
+- `/api/inspect` runs the same model pipeline used by the CLI and returns prompt tokens, next-token candidates, attention layers, generation timeline, ablations, and report availability.
+- `/api/export-report` returns the standalone HTML report for download.
+
+The web project depends on the core library rather than reimplementing model behavior.
 
 ## Tests
 
@@ -52,6 +68,8 @@ The CLI is intentionally verbose in explanation modes because its primary job is
 
 - Golden generation tests lock down deterministic outputs for representative prompts.
 - Prompt inspection tests check token, embedding, layer, prediction, and disabled-attention behavior.
+- Export/report tests check JSON shape stability and standalone HTML report content.
+- Web playground tests cover the service-level response shape without requiring a long-running server.
 - PowerShell scripts provide additional end-to-end coverage of CLI dispatch, seeded generation, inspection output, and comparison commands.
 
 ## Scripts
@@ -64,10 +82,11 @@ The scripts are optimized for Windows teaching environments while still working 
 - `student-labs.ps1` runs the five shortest teaching demos.
 - `student-walkthrough.ps1` runs a pause-driven instructor walkthrough and writes a transcript.
 - `demo-learning.ps1` is a compact interactive demo script.
+- `demo-report.ps1` generates `artifacts/demo-report.html` through the CLI report command.
 
 ## CI
 
-GitHub Actions runs a clean Windows .NET 8 restore, build, and xUnit test flow. CI uses direct `dotnet` commands because hosted runners do not need the repo-local environment helper.
+GitHub Actions runs a clean Windows .NET 8 restore, build, xUnit test, and CLI smoke flow. CI uses direct `dotnet` commands because hosted runners do not need the repo-local environment helper.
 
 ## Naming
 

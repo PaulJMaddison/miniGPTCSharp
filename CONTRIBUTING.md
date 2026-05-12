@@ -50,11 +50,23 @@ Run the short teaching labs:
 powershell -ExecutionPolicy Bypass -File .\scripts\student-labs.ps1
 ```
 
+Generate the demo HTML report:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\demo-report.ps1
+```
+
+Run the GPT Microscope playground:
+
+```powershell
+dotnet run -c Release --project .\MiniGPTCSharp.Web\MiniGPTCSharp.Web.csproj --urls http://localhost:5088
+```
+
 ## Test Expectations
 
 - Preserve deterministic golden outputs unless the model behavior intentionally changes.
 - Keep prompt inspection coverage when adding or changing internals.
-- Add or update CLI smoke checks when changing command behavior.
+- Add or update CLI smoke checks when changing command, JSON export, report, or web behavior.
 - Update docs when a command, script, or teaching flow changes.
 
 ## Contribution Style

@@ -18,6 +18,8 @@ $ErrorActionPreference = "Stop"
 
 $CliProj      = Join-Path $RepoRoot "MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
 $TestsProj    = Join-Path $RepoRoot "MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj"
+$Solution     = Join-Path $RepoRoot "miniGPTCSharp.sln"
+$ReportOut    = Join-Path $RepoRoot ".dotnet\test-output\demo-report.html"
 
 function Assert-Contains {
     param(
@@ -87,10 +89,12 @@ function Run-Cli([string[]]$argsArray) {
 }
 
 Write-Host "RepoRoot:  $RepoRoot" -ForegroundColor Yellow
+Write-Host "Solution:  $Solution" -ForegroundColor Yellow
 Write-Host "CLI:       $CliProj" -ForegroundColor Yellow
 Write-Host "Tests:     $TestsProj" -ForegroundColor Yellow
 
 Require-Path $RepoRoot     "RepoRoot"
+Require-Path $Solution     "Solution"
 Require-Path $CliProj      "CLI project (.csproj)"
 Require-Path $TestsProj    "Tests project (.csproj)"
 
@@ -98,11 +102,11 @@ Require-Path $TestsProj    "Tests project (.csproj)"
 Push-Location $RepoRoot
 try {
   Write-Host "`n== Clean ==" -ForegroundColor Yellow
-  Invoke-RepoDotNet -Arguments @("clean", $CliProj, "-c", $Config) | Out-Host
+  Invoke-RepoDotNet -Arguments @("clean", $Solution, "-c", $Config) | Out-Host
   if ($LASTEXITCODE -ne 0) { throw "dotnet clean failed" }
 
   Write-Host "`n== Build ($Config) ==" -ForegroundColor Yellow
-  Invoke-RepoDotNet -Arguments @("build", $TestsProj, "-c", $Config) | Out-Host
+  Invoke-RepoDotNet -Arguments @("build", $Solution, "-c", $Config) | Out-Host
   if ($LASTEXITCODE -ne 0) { throw "dotnet build failed" }
 }
 finally { Pop-Location }
@@ -162,7 +166,24 @@ Assert-Contains $compareSampling "Deterministic argmax" "Compare sampling did no
 Assert-Contains $compareSampling "Seeded sampling (seed=42)" "Compare sampling did not print seed 42 output"
 Assert-Contains $compareSampling "Seeded sampling (seed=7)" "Compare sampling did not print seed 7 output"
 
-# 9) dotnet test
+# 9) JSON/report export checks
+Write-Host "`nRunning JSON export check..." -ForegroundColor Yellow
+$predictJson = Run-Cli @("predict","--prompt","The capital of France is","--topn","3","--json")
+Assert-Contains $predictJson '"schemaVersion"' "Predict JSON did not include schema version"
+Assert-Contains $predictJson '"predictions"' "Predict JSON did not include predictions"
+
+Write-Host "`nRunning report export check..." -ForegroundColor Yellow
+$reportDirectory = Split-Path -Parent $ReportOut
+if (!(Test-Path $reportDirectory)) {
+  New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null
+}
+$reportOutput = Run-Cli @("report","--prompt","The capital of France is","--out",$ReportOut,"--tokens","4","--dims","4")
+Assert-Contains $reportOutput "Report written" "Report command did not confirm output"
+Require-Path $ReportOut "Generated report"
+$reportHtml = Get-Content -Raw -LiteralPath $ReportOut
+Assert-Contains $reportHtml "GPT Internals Report" "Generated report did not contain expected title"
+
+# 10) dotnet test
 Push-Location $RepoRoot
 try {
   Write-Host "`n== dotnet test ==" -ForegroundColor Yellow

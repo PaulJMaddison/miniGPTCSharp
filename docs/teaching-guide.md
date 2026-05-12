@@ -136,6 +136,18 @@ Next command for self-study:
 powershell -ExecutionPolicy Bypass -File .\scripts\student-labs.ps1
 ```
 
+Optional portfolio artifact:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\demo-report.ps1
+```
+
+Optional visual follow-up:
+
+```powershell
+dotnet run -c Release --project .\MiniGPTCSharp.Web\MiniGPTCSharp.Web.csproj --urls http://localhost:5088
+```
+
 ## Instructor Tips
 
 - Let students choose one prompt for `inspect pipeline`; ownership makes the output more memorable.

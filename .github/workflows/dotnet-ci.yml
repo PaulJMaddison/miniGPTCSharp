@@ -38,3 +38,8 @@ jobs:
 
       - name: Test
         run: dotnet test MiniGPTCSharp.Tests/MiniGPTCSharp.Tests.csproj --configuration Release --no-build --no-restore --logger "trx;LogFileName=test-results.trx"
+
+      - name: CLI smoke
+        run: |
+          dotnet run --configuration Release --no-build --project MiniGPTCSharp.Cli/MiniGPTCSharp.Cli.csproj -- predict --prompt "The capital of France is" --topn 3 --json
+          dotnet run --configuration Release --no-build --project MiniGPTCSharp.Cli/MiniGPTCSharp.Cli.csproj -- report --prompt "The capital of France is" --out artifacts/ci-report.html --tokens 4 --dims 4
