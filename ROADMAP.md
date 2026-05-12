@@ -17,7 +17,7 @@ MiniGPTSharp is already useful as a teaching and portfolio demo. The next improv
 - Add a generation replay control for stepping backward and forward through chosen tokens.
 - Add a fork-from-step workflow: change seed or temperature at a previous step and branch generation.
 - Add downloadable teaching packs with prompt, report, and discussion notes.
-- Add a public hosted demo if deployment is appropriate.
+- Add a public hosted backend demo only if separate hosting is appropriate.
 
 ## Engineering Depth
 
@@ -36,6 +36,6 @@ MiniGPTSharp is already useful as a teaching and portfolio demo. The next improv
 
 ## Release Ideas
 
-- `v1.1`: GPT Microscope, report generation, JSON exports, CI, docs polish.
-- `v1.2`: screenshots, GIF, prompt presets, hosted demo, roadmap-driven README refresh.
+- `v1.1`: GPT Microscope, report generation, JSON exports, verification docs polish.
+- `v1.2`: screenshots, GIF, prompt presets, optional hosted backend demo, roadmap-driven README refresh.
 - `v1.3`: generation replay, prompt comparison, richer attention interactions.

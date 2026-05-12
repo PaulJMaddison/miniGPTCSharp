@@ -1,6 +1,5 @@
 # MiniGPTSharp
 
-[![Build and Test](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/dotnet-ci.yml/badge.svg?branch=main)](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/dotnet-ci.yml)
 [![Live Showcase](https://img.shields.io/badge/live%20showcase-GitHub%20Pages-24b58f)](https://pauljmaddison.github.io/miniGPTCSharp/)
 ![Tests](https://img.shields.io/badge/tests-xUnit%20%2B%20CLI%20smoke-blue)
 ![Status](https://img.shields.io/badge/status-portfolio%20demo-success)
@@ -14,7 +13,7 @@ MiniGPTSharp is a polished .NET 8 portfolio demo that makes GPT-style next-token
 
 **Who it is for:** hiring reviewers, .NET engineers learning LLM fundamentals, and instructors who want a compact 30-minute workshop.
 
-**What it demonstrates:** idiomatic .NET project structure, deterministic model behavior, xUnit regression tests, PowerShell automation, GitHub Actions CI, and documentation that explains the system before anyone runs it.
+**What it demonstrates:** idiomatic .NET project structure, deterministic model behavior, xUnit regression tests, PowerShell automation, local verification scripts, and documentation that explains the system before anyone runs it.
 
 This repo is deliberately small, inspectable, and a little opinionated:
 

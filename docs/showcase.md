@@ -25,7 +25,7 @@ The repo demonstrates a practical .NET delivery shape:
 - an ASP.NET Core web playground
 - JSON exports for integration
 - standalone HTML reports
-- xUnit tests and GitHub Actions CI
+- xUnit tests and repeatable local verification scripts
 - PowerShell scripts for repeatable local workflows
 
 This is the kind of structure that scales from demo to internal tool without starting again.

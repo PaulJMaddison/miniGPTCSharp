@@ -24,8 +24,6 @@ docs/
   assets/                       README, release, and demo visuals
 ROADMAP.md                      Product and engineering improvement path
 SECURITY.md                     Local-first behavior and security scope
-.github/workflows/
-  dotnet-ci.yml                 Windows .NET build/test workflow
 ```
 
 ## Core Library
@@ -101,9 +99,13 @@ The scripts are optimized for Windows teaching environments while still working 
 - `demo-report.ps1` generates `artifacts/demo-report.html` through the CLI report command.
 - `publish-pages.ps1` publishes the static brochure site from `site` to the `gh-pages` branch.
 
-## CI
+## Local Verification
 
-GitHub Actions runs a clean Windows .NET 8 restore, build, xUnit test, and CLI smoke flow. CI uses direct `dotnet` commands because hosted runners do not need the repo-local environment helper.
+Hosted automation is intentionally not enabled for this repository. Use the local verification scripts before publishing changes:
+
+- `scripts/test-all.ps1` runs clean, build, CLI regression checks, and `dotnet test`.
+- `scripts/verify-everything.ps1` runs the broader release-readiness checks.
+- `scripts/publish-pages.ps1` republishes the static showcase to the `gh-pages` branch.
 
 ## Showcase Layer
 
