@@ -1,9 +1,12 @@
 # MiniGPTSharp
 
 [![Build and Test](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/dotnet-ci.yml/badge.svg?branch=main)](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/dotnet-ci.yml)
+[![Static Showcase](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/pages.yml)
 ![Tests](https://img.shields.io/badge/tests-xUnit%20%2B%20CLI%20smoke-blue)
 ![Status](https://img.shields.io/badge/status-portfolio%20demo-success)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
+
+![GPT Microscope showcase](docs/assets/gpt-microscope-showcase.svg)
 
 MiniGPTSharp is a polished .NET 8 portfolio demo that makes GPT-style next-token generation inspectable instead of mysterious.
 
@@ -21,6 +24,18 @@ This repo is deliberately small, inspectable, and a little opinionated:
 - it favors readability over realism or performance
 
 It is a toy model, not a production model. That is the point.
+
+## Live Showcase
+
+The repo now includes a static GitHub Pages showcase in [`site`](site). It is designed to be hosted for free from a public GitHub repository and gives clients a polished first impression before they clone anything.
+
+Expected Pages URL after the workflow runs:
+
+```text
+https://pauljmaddison.github.io/miniGPTCSharp/
+```
+
+The static showcase is intentionally frontend-only. The full GPT Microscope experience still lives in [`MiniGPTCSharp.Web`](MiniGPTCSharp.Web), where ASP.NET Core serves the live inspection APIs.
 
 ## Quick Start
 
@@ -64,13 +79,29 @@ Initialize-LocalDotNetEnv
 Invoke-RepoDotNet -Arguments @("test", ".\MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj", "-c", "Release")
 ```
 
+## Three-Minute Client Demo
+
+Use this path when you want to show the project quickly to a reviewer, client, or technical stakeholder:
+
+```powershell
+dotnet build .\miniGPTCSharp.sln -c Release
+powershell -ExecutionPolicy Bypass -File .\scripts\demo-report.ps1
+dotnet run -c Release --project .\MiniGPTCSharp.Web\MiniGPTCSharp.Web.csproj --urls http://localhost:5088
+```
+
+Then open [http://localhost:5088](http://localhost:5088), run the default prompt, show the generated report in `artifacts\demo-report.html`, and point out that CLI, web, tests, and reports all use the same C# core model.
+
 ## Go Deeper
 
 - [CLI command guide](#cli-commands)
 - [Recommended teaching flow](#recommended-teaching-flow)
+- [Client-facing showcase](docs/showcase.md)
+- [Static GitHub Pages showcase](site)
 - [Architecture overview](docs/architecture.md)
 - [30-minute teaching guide](docs/teaching-guide.md)
 - [Contributing and local development](CONTRIBUTING.md)
+- [Roadmap](ROADMAP.md)
+- [Security and local-first behavior](SECURITY.md)
 
 ## Why this repo is useful
 
@@ -411,6 +442,51 @@ The public repo name is **MiniGPTSharp** because it reads cleanly as a C# teachi
 - [`MiniGPTCSharp.Tests`](MiniGPTCSharp.Tests) contains xUnit golden tests and inspection tests
 - [`scripts`](scripts) contains walkthrough, lab, smoke, and test scripts
 - [`docs`](docs) contains the architecture overview and workshop guide
+- [`site`](site) contains the static GitHub Pages showcase
+
+```mermaid
+flowchart LR
+    Core["MiniGPTCSharp Core Library"] --> CLI["Teaching CLI"]
+    Core --> Web["GPT Microscope Web"]
+    Core --> Reports["HTML Reports"]
+    Core --> Tests["xUnit Tests"]
+    CLI --> JSON["JSON Exports"]
+    CLI --> Scripts["PowerShell Labs"]
+    Web --> API["Inspect / Export APIs"]
+```
+
+## Visual Assets
+
+Showcase images live in [`docs/assets`](docs/assets). Use this helper to start the web app and capture README/release assets:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\capture-showcase-assets.ps1 -KeepServer
+```
+
+Recommended assets:
+
+- desktop GPT Microscope screenshot
+- mobile GPT Microscope screenshot
+- generated report screenshot
+- short demo GIF showing prompt inspection and report export
+
+## Local-First Trust Signal
+
+MiniGPTSharp does not send prompts to external model APIs. The toy model, CLI, web app, and report generator all run locally, which makes the repo useful for workshops, internal demos, and AI literacy sessions where repeatability and privacy matter.
+
+See [SECURITY.md](SECURITY.md) for the full local-first note.
+
+## GitHub Pages Hosting
+
+The static showcase is published by [`.github/workflows/pages.yml`](.github/workflows/pages.yml). To make it live:
+
+1. Push the workflow and `site` folder to `main`.
+2. Open the repository settings on GitHub.
+3. Go to **Pages**.
+4. Set the source to **GitHub Actions** if it is not already selected.
+5. Run the `Deploy static showcase` workflow.
+
+GitHub Pages can host this static site for free from a public repository. It will not run the ASP.NET Core app itself, so use separate app hosting if you want the live backend available on the internet.
 
 ## What This Repo Is Not
 
@@ -445,14 +521,20 @@ For the full local regression flow, including CLI smoke checks:
 powershell -ExecutionPolicy Bypass -File .\scripts\test-all.ps1
 ```
 
-## Suggested Next Improvements
+## Repository Topics
 
-If you want to keep evolving this repo as a teaching tool, the next high-value ideas are:
+Suggested GitHub topics:
 
-- add a tiny attention heatmap export for markdown or HTML
-- add a "teacher notes" document with suggested discussion prompts
-- add a few fixed classroom exercises with expected observations
-- add a `compare prompt-a prompt-b` mode to show context sensitivity
-- add saved example prompts for repeatable demos
+- `csharp`
+- `dotnet`
+- `ai`
+- `gpt`
+- `llm`
+- `education`
+- `explainable-ai`
+- `visualization`
+- `portfolio`
 
-Those would deepen the teaching experience without making the core model much bigger.
+## Roadmap
+
+The next upgrades are tracked in [ROADMAP.md](ROADMAP.md), with an emphasis on screenshots, GIFs, prompt presets, richer attention interactions, replayable generation, and packaging the CLI as a .NET tool.

@@ -2,6 +2,7 @@
 **/obj/
 /.vs
 /.dotnet
+/Microsoft/
 **/NuGet/Migrations/
 **/TestResults/
 **/coverage/
@@ -9,3 +10,5 @@
 *.coverage
 *.coveragexml
 **/walkthrough-output.txt
+docs/assets/*.log
+artifacts/verification/

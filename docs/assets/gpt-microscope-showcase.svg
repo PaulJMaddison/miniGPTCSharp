@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">GPT Microscope showcase visual</title>
+  <desc id="desc">A commercial-style technical dashboard illustration for MiniGPTSharp using graphite, ivory, chartreuse, copper, and teal.</desc>
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171a18"/>
+      <stop offset="1" stop-color="#24251f"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d7ff52"/>
+      <stop offset="1" stop-color="#44d7b6"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#050605" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="640" fill="#f4efe2"/>
+  <path d="M0 0h1280v640H0z" fill="#f4efe2"/>
+  <path d="M104 92h1072v456H104z" rx="18" fill="url(#panel)" filter="url(#softShadow)"/>
+  <path d="M140 130h1000v1H140z" fill="#3b4038"/>
+  <text x="140" y="172" fill="#f4efe2" font-family="Segoe UI, Arial, sans-serif" font-size="44" font-weight="700">GPT Microscope</text>
+  <text x="142" y="210" fill="#beb8a9" font-family="Segoe UI, Arial, sans-serif" font-size="19">Inspectable GPT-style generation for C# teams</text>
+  <rect x="140" y="252" width="296" height="224" rx="10" fill="#101210" stroke="#3b4038"/>
+  <text x="164" y="290" fill="#f4efe2" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="650">Prompt tokens</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="15">
+    <rect x="164" y="318" width="74" height="34" rx="7" fill="#2f352c"/><text x="181" y="341" fill="#f4efe2">The</text>
+    <rect x="248" y="318" width="104" height="34" rx="7" fill="#2f352c"/><text x="266" y="341" fill="#f4efe2">capital</text>
+    <rect x="164" y="364" width="58" height="34" rx="7" fill="#2f352c"/><text x="181" y="387" fill="#f4efe2">of</text>
+    <rect x="232" y="364" width="94" height="34" rx="7" fill="#2f352c"/><text x="249" y="387" fill="#f4efe2">France</text>
+    <rect x="336" y="364" width="48" height="34" rx="7" fill="#d7ff52"/><text x="354" y="387" fill="#171a18">is</text>
+  </g>
+  <rect x="472" y="252" width="312" height="224" rx="10" fill="#101210" stroke="#3b4038"/>
+  <text x="496" y="290" fill="#f4efe2" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="650">Next-token probabilities</text>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="14" fill="#f4efe2">
+    <text x="496" y="330">capital</text><rect x="580" y="314" width="142" height="18" rx="9" fill="url(#accent)"/><text x="736" y="330">21%</text>
+    <text x="496" y="366">France</text><rect x="580" y="350" width="116" height="18" rx="9" fill="#44d7b6"/><text x="736" y="366">18%</text>
+    <text x="496" y="402">Paris</text><rect x="580" y="386" width="102" height="18" rx="9" fill="#c6754d"/><text x="736" y="402">16%</text>
+    <text x="496" y="438">AI</text><rect x="580" y="422" width="68" height="18" rx="9" fill="#7c8375"/><text x="736" y="438">9%</text>
+  </g>
+  <rect x="820" y="252" width="320" height="224" rx="10" fill="#101210" stroke="#3b4038"/>
+  <text x="844" y="290" fill="#f4efe2" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="650">Attention heatmap</text>
+  <g transform="translate(844 316)">
+    <rect width="38" height="38" fill="#d7ff52"/><rect x="44" width="38" height="38" fill="#7e8f4a"/><rect x="88" width="38" height="38" fill="#44523a"/><rect x="132" width="38" height="38" fill="#2c332b"/><rect x="176" width="38" height="38" fill="#222822"/>
+    <rect y="44" width="38" height="38" fill="#44d7b6"/><rect x="44" y="44" width="38" height="38" fill="#d7ff52"/><rect x="88" y="44" width="38" height="38" fill="#7e8f4a"/><rect x="132" y="44" width="38" height="38" fill="#44523a"/><rect x="176" y="44" width="38" height="38" fill="#2c332b"/>
+    <rect y="88" width="38" height="38" fill="#c6754d"/><rect x="44" y="88" width="38" height="38" fill="#44d7b6"/><rect x="88" y="88" width="38" height="38" fill="#d7ff52"/><rect x="132" y="88" width="38" height="38" fill="#7e8f4a"/><rect x="176" y="88" width="38" height="38" fill="#44523a"/>
+    <rect y="132" width="38" height="38" fill="#3b4038"/><rect x="44" y="132" width="38" height="38" fill="#c6754d"/><rect x="88" y="132" width="38" height="38" fill="#44d7b6"/><rect x="132" y="132" width="38" height="38" fill="#d7ff52"/><rect x="176" y="132" width="38" height="38" fill="#7e8f4a"/>
+  </g>
+  <rect x="140" y="500" width="1000" height="1" fill="#3b4038"/>
+  <text x="140" y="532" fill="#d7ff52" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="650">CLI + Web + Reports + Tests</text>
+  <text x="384" y="532" fill="#beb8a9" font-family="Segoe UI, Arial, sans-serif" font-size="18">A compact explainable-AI portfolio system for .NET teams</text>
+</svg>

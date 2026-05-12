@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MiniGPTSharp is a client-ready .NET GPT Microscope that makes tokenization, logits, attention, sampling, reports, and ablations visible.">
+  <meta property="og:title" content="MiniGPTSharp | GPT Microscope">
+  <meta property="og:description" content="A polished local-first explainable AI teaching and portfolio tool for .NET.">
+  <meta property="og:type" content="website">
+  <title>MiniGPTSharp | GPT Microscope</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@500;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true">
+    <span class="orb orb-one"></span>
+    <span class="orb orb-two"></span>
+    <span class="grain"></span>
+  </div>
+
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="MiniGPTSharp home">
+      <span class="brand-mark">MG</span>
+      <span>
+        <strong>MiniGPTSharp</strong>
+        <small>GPT Microscope</small>
+      </span>
+    </a>
+    <nav class="nav-links" aria-label="Primary navigation">
+      <a href="#story">Story</a>
+      <a href="#microscope">Microscope</a>
+      <a href="#proof">Proof</a>
+      <a href="#run">Run it</a>
+      <a class="nav-pill" href="https://github.com/PaulJMaddison/miniGPTCSharp">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero-section" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">Local-first explainable AI in C#</p>
+        <h1 id="hero-title">Make AI explain itself before anyone has to trust it.</h1>
+        <p class="hero-lede">
+          MiniGPTSharp is a compact, client-ready GPT Microscope: a static sales front door, a real ASP.NET Core product, a teaching CLI, JSON exports, reports, tests, and a tiny model people can actually inspect.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="https://github.com/PaulJMaddison/miniGPTCSharp">View the working repo</a>
+          <a class="button secondary" href="#microscope">Watch the static preview</a>
+        </div>
+        <div class="proof-pills" aria-label="Project signals">
+          <span>.NET 8</span>
+          <span>No model API calls</span>
+          <span>CLI + Web + Reports</span>
+          <span>xUnit + CI</span>
+        </div>
+      </div>
+
+      <div class="hero-stage" aria-label="MiniGPTSharp product preview">
+        <div class="stage-toolbar">
+          <span></span>
+          <span></span>
+          <span></span>
+          <strong>GPT Microscope / local</strong>
+        </div>
+        <div class="stage-grid">
+          <section class="stage-card prompt-card">
+            <span>Prompt</span>
+            <p>The capital of France is</p>
+          </section>
+          <section class="stage-card output-card">
+            <span>Generated trace</span>
+            <p>capital -> Paris -> model -> next</p>
+          </section>
+          <section class="stage-card probability-card">
+            <span>Next token</span>
+            <div class="mini-bar"><b style="width: 86%"></b><em>capital 21%</em></div>
+            <div class="mini-bar"><b style="width: 63%"></b><em>France 18%</em></div>
+            <div class="mini-bar"><b style="width: 55%"></b><em>Paris 16%</em></div>
+          </section>
+          <section class="stage-card heat-card">
+            <span>Attention</span>
+            <div class="mini-heat" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i>
+            </div>
+          </section>
+        </div>
+        <div class="floating-note note-one">
+          <strong>Static brochure</strong>
+          <span>Hosted free on GitHub Pages.</span>
+        </div>
+        <div class="floating-note note-two">
+          <strong>Full product</strong>
+          <span>Clone and run locally with ASP.NET Core.</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="story" class="story-section" aria-labelledby="story-title">
+      <div class="section-heading">
+        <p class="eyebrow">What this sells</p>
+        <h2 id="story-title">A small repo with the posture of a real product.</h2>
+        <p>
+          This is not just a toy model. It is a demonstration that complex AI behavior can be packaged into software that is understandable, testable, local, and beautiful enough to show a client.
+        </p>
+      </div>
+      <div class="story-grid">
+        <article>
+          <span>For clients</span>
+          <h3>AI you can inspect</h3>
+          <p>Turn abstract model behavior into visible product moments: tokens, probability bars, attention, ablation, reports, and deterministic replay.</p>
+        </article>
+        <article>
+          <span>For students</span>
+          <h3>Concepts they can touch</h3>
+          <p>Use one tiny, readable model to teach logits, softmax, sampling, prompt context, and why generated text changes.</p>
+        </article>
+        <article>
+          <span>For engineers</span>
+          <h3>Signals of delivery quality</h3>
+          <p>Clean .NET structure, CLI commands, ASP.NET Core APIs, xUnit tests, CI, docs, scripts, and release-ready positioning.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="split-section" aria-labelledby="split-title">
+      <div class="section-heading compact">
+        <p class="eyebrow">Brochure versus product</p>
+        <h2 id="split-title">The public site sells it. The repo runs it.</h2>
+      </div>
+      <div class="split-grid">
+        <article class="split-card static-card">
+          <span class="label">GitHub Pages</span>
+          <h3>Static brochure site</h3>
+          <p>This page is a polished, fast-loading sales surface. It tells the story, previews the interface, and points people to the working repository.</p>
+          <ul>
+            <li>Free static hosting from a public repo</li>
+            <li>No backend required</li>
+            <li>Designed for first impressions and portfolio traffic</li>
+          </ul>
+        </article>
+        <article class="split-card product-card">
+          <span class="label">Downloadable app</span>
+          <h3>Full GPT Microscope</h3>
+          <p>The actual product remains in the repo: an ASP.NET Core app and CLI that run the real C# model locally, with inspect APIs and report export.</p>
+          <ul>
+            <li>Clone the repository</li>
+            <li>Run the web project on localhost</li>
+            <li>Use CLI, JSON, reports, tests, and teaching scripts</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="microscope" class="microscope-section" aria-labelledby="microscope-title">
+      <div class="section-heading">
+        <p class="eyebrow">Interactive static preview</p>
+        <h2 id="microscope-title">The product story, compressed into one scene.</h2>
+        <p>
+          Toggle the trace below to feel how the local app explains model behavior. The preview is static; the downloadable app runs the same ideas against the C# model.
+        </p>
+      </div>
+
+      <div class="workbench">
+        <aside class="control-panel" aria-label="Demo controls">
+          <div class="panel-kicker">Experiment</div>
+          <label>
+            <span>Prompt</span>
+            <textarea readonly>The capital of France is</textarea>
+          </label>
+          <div class="switch-row" aria-label="Mode">
+            <button class="switch active" type="button" data-mode="deterministic">Deterministic</button>
+            <button class="switch" type="button" data-mode="seeded">Seeded</button>
+          </div>
+          <div class="metric-grid">
+            <div><span>Temperature</span><strong id="temperatureMetric">0.8</strong></div>
+            <div><span>Top-k</span><strong>10</strong></div>
+            <div><span>Seed</span><strong id="seedMetric">n/a</strong></div>
+            <div><span>Tokens</span><strong>6</strong></div>
+          </div>
+          <button id="replayButton" class="button primary wide" type="button">Replay trace</button>
+        </aside>
+
+        <div class="dashboard">
+          <section class="panel output-panel">
+            <div class="panel-title">
+              <div>
+                <span class="panel-kicker">Model output</span>
+                <h3>Generated continuation</h3>
+              </div>
+              <span id="modeBadge">Deterministic argmax</span>
+            </div>
+            <p id="generatedText">the capital of France is capital Paris model next token learning</p>
+          </section>
+
+          <section class="panel token-panel">
+            <div class="panel-title">
+              <div>
+                <span class="panel-kicker">Tokenizer</span>
+                <h3>Prompt tokens</h3>
+              </div>
+              <span>5 tokens</span>
+            </div>
+            <div id="tokenStrip" class="token-strip"></div>
+          </section>
+
+          <section class="panel probability-panel">
+            <div class="panel-title">
+              <div>
+                <span class="panel-kicker">Softmax</span>
+                <h3>Next-token probabilities</h3>
+              </div>
+              <span>top 5</span>
+            </div>
+            <div id="probabilityList" class="probability-list"></div>
+          </section>
+
+          <section class="panel attention-panel">
+            <div class="panel-title">
+              <div>
+                <span class="panel-kicker">Context</span>
+                <h3>Attention heatmap</h3>
+              </div>
+              <span>layer 1</span>
+            </div>
+            <div id="attentionGrid" class="attention-grid"></div>
+          </section>
+
+          <section class="panel timeline-panel">
+            <div class="panel-title">
+              <div>
+                <span class="panel-kicker">Replay</span>
+                <h3>Generation timeline</h3>
+              </div>
+              <span>first four steps</span>
+            </div>
+            <div id="timeline" class="timeline"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="proof" class="proof-section" aria-labelledby="proof-title">
+      <div class="section-heading">
+        <p class="eyebrow">Proof points</p>
+        <h2 id="proof-title">Why it feels bigger than its size.</h2>
+      </div>
+      <div class="proof-grid">
+        <article>
+          <span>01</span>
+          <h3>Explainability as interface</h3>
+          <p>Internals are surfaced as UX, not buried in logs. That is the difference between a demo and a teaching product.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h3>One core, many surfaces</h3>
+          <p>The same C# model powers CLI output, JSON exports, HTML reports, tests, and the ASP.NET Core playground.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h3>Repeatable by design</h3>
+          <p>Seeded generation and local execution make workshops safe, predictable, and easy to explain without cloud dependencies.</p>
+        </article>
+        <article>
+          <span>04</span>
+          <h3>Portfolio-grade packaging</h3>
+          <p>CI, docs, roadmap, security notes, scripts, and static hosting make the repo feel release-aware, not improvised.</p>
+        </article>
+      </div>
+      <figure class="showcase-frame">
+        <img src="assets/gpt-microscope-showcase.svg" alt="Illustrated GPT Microscope dashboard with prompt, token, probability, attention, and report panels">
+      </figure>
+    </section>
+
+    <section id="run" class="run-section" aria-labelledby="run-title">
+      <div>
+        <p class="eyebrow">Run the real app</p>
+        <h2 id="run-title">Three commands to the full local experience.</h2>
+        <p>
+          The brochure is static. The real value is the repo: build it, generate a report, then run the ASP.NET Core GPT Microscope locally.
+        </p>
+      </div>
+      <pre><code>dotnet build .\miniGPTCSharp.sln -c Release
+powershell -ExecutionPolicy Bypass -File .\scripts\demo-report.ps1
+dotnet run -c Release --project .\MiniGPTCSharp.Web\MiniGPTCSharp.Web.csproj --urls http://localhost:5088</code></pre>
+      <div class="demo-links">
+        <a class="button primary" href="https://github.com/PaulJMaddison/miniGPTCSharp">Clone on GitHub</a>
+        <a class="button secondary" href="https://github.com/PaulJMaddison/miniGPTCSharp/blob/main/README.md">Read the README</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>MiniGPTSharp</span>
+    <span>Static sales site on GitHub Pages. Full GPT Microscope runs locally from the repo.</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

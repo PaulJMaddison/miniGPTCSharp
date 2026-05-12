@@ -13,13 +13,20 @@ MiniGPTCSharp.Web/
   MiniGPTCSharp.Web.csproj      GPT Microscope web playground
 MiniGPTCSharp.Tests/
   MiniGPTCSharp.Tests.csproj    xUnit regression tests
+site/
+  index.html                    Static GitHub Pages showcase
 scripts/
   *.ps1                         Local setup, smoke tests, labs, walkthroughs
 docs/
   architecture.md               This overview
+  showcase.md                   Client-facing product and portfolio framing
   teaching-guide.md             30-minute workshop plan
+  assets/                       README, release, and demo visuals
+ROADMAP.md                      Product and engineering improvement path
+SECURITY.md                     Local-first behavior and security scope
 .github/workflows/
   dotnet-ci.yml                 Windows .NET build/test workflow
+  pages.yml                     GitHub Pages static showcase deployment
 ```
 
 ## Core Library
@@ -62,6 +69,16 @@ JSON output is available for `predict`, `inspect`, and `compare` so tests, scrip
 
 The web project depends on the core library rather than reimplementing model behavior.
 
+## Static Showcase
+
+`site` is a frontend-only showcase for GitHub Pages. It is deliberately separate from `MiniGPTCSharp.Web`:
+
+- `site` sells and previews the project with static HTML, CSS, JavaScript, and assets.
+- `MiniGPTCSharp.Web` runs the real local ASP.NET Core API-backed playground.
+- `.github/workflows/pages.yml` publishes `site` through GitHub Pages.
+
+This split keeps the public portfolio page free and easy to host while preserving the richer app experience for local demos or separate app hosting.
+
 ## Tests
 
 `MiniGPTCSharp.Tests` uses xUnit so `dotnet test` discovers and reports tests in the standard .NET way.
@@ -87,6 +104,17 @@ The scripts are optimized for Windows teaching environments while still working 
 ## CI
 
 GitHub Actions runs a clean Windows .NET 8 restore, build, xUnit test, and CLI smoke flow. CI uses direct `dotnet` commands because hosted runners do not need the repo-local environment helper.
+
+## Showcase Layer
+
+The repo includes a small portfolio layer around the implementation:
+
+- `site` contains the static GitHub Pages showcase.
+- `docs/showcase.md` explains the commercial value of explainable AI tooling.
+- `docs/assets` stores README and release visuals.
+- `scripts/capture-showcase-assets.ps1` starts the web playground for screenshot and GIF capture.
+- `ROADMAP.md` communicates where the demo can grow next.
+- `SECURITY.md` makes the local-first, no-external-model-calls behavior explicit.
 
 ## Naming
 
