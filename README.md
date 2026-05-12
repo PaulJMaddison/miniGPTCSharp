@@ -1,13 +1,17 @@
 # MiniGPTSharp
 
-MiniGPTSharp is a tiny C#/.NET teaching project for students who want to understand the mechanics behind GPT-style next-token prediction without hiding the interesting parts behind large frameworks.
+[![Build and Test](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/dotnet-ci.yml/badge.svg?branch=main)](https://github.com/PaulJMaddison/miniGPTCSharp/actions/workflows/dotnet-ci.yml)
+![Tests](https://img.shields.io/badge/tests-xUnit%20%2B%20CLI%20smoke-blue)
+![Status](https://img.shields.io/badge/status-portfolio%20demo-success)
+![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
 
-It aims for the middle ground between:
+MiniGPTSharp is a polished .NET 8 portfolio demo that makes GPT-style next-token generation inspectable instead of mysterious.
 
-- theory-heavy AI explanations that never become runnable
-- production-scale ML repos that hide the core ideas under layers of infrastructure
+**Value proposition:** a small, credible C# codebase that turns tokenization, logits, softmax, sampling, attention, and ablations into runnable CLI workflows reviewers can evaluate quickly.
 
-If you live in .NET and want a small, readable GPT-style language model in C#, this repo is designed for that.
+**Who it is for:** hiring reviewers, .NET engineers learning LLM fundamentals, and instructors who want a compact 30-minute workshop.
+
+**What it demonstrates:** idiomatic .NET project structure, deterministic model behavior, xUnit regression tests, PowerShell automation, GitHub Actions CI, and documentation that explains the system before anyone runs it.
 
 This repo is deliberately small, inspectable, and a little opinionated:
 
@@ -17,6 +21,56 @@ This repo is deliberately small, inspectable, and a little opinionated:
 - it favors readability over realism or performance
 
 It is a toy model, not a production model. That is the point.
+
+## Quick Start
+
+### 1) Build and test
+
+```powershell
+dotnet restore .\miniGPTCSharp.sln
+dotnet build .\miniGPTCSharp.sln -c Release --no-restore
+dotnet test .\MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj -c Release --no-build --no-restore
+```
+
+### 2) Try the CLI
+
+```powershell
+$cli = ".\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
+
+dotnet run -c Release --project $cli -- --help
+dotnet run -c Release --project $cli -- predict --prompt "The capital of France is" --topn 5
+dotnet run -c Release --project $cli -- predict --prompt "The capital of France is" --topn 5 --json
+dotnet run -c Release --project $cli -- inspect pipeline --prompt "The capital of France is"
+dotnet run -c Release --project $cli -- compare sampling --prompt "The capital of France is" --tokens 8
+dotnet run -c Release --project $cli -- report --prompt "The capital of France is" --out artifacts/demo-report.html
+```
+
+### 3) Run GPT Microscope
+
+```powershell
+$web = ".\MiniGPTCSharp.Web\MiniGPTCSharp.Web.csproj"
+dotnet run -c Release --project $web --urls http://localhost:5088
+```
+
+Then open [http://localhost:5088](http://localhost:5088). The playground runs the existing C# model through ASP.NET Core APIs and renders token IDs, logits, probability bars, attention matrices, generation steps, ablation comparisons, and HTML report export.
+
+### 4) Use the local helper when needed
+
+On locked-down Windows machines, the scripts can redirect .NET and NuGet state into the repo-local `.dotnet` folder:
+
+```powershell
+. .\scripts\Use-LocalDotNetEnv.ps1
+Initialize-LocalDotNetEnv
+Invoke-RepoDotNet -Arguments @("test", ".\MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj", "-c", "Release")
+```
+
+## Go Deeper
+
+- [CLI command guide](#cli-commands)
+- [Recommended teaching flow](#recommended-teaching-flow)
+- [Architecture overview](docs/architecture.md)
+- [30-minute teaching guide](docs/teaching-guide.md)
+- [Contributing and local development](CONTRIBUTING.md)
 
 ## Why this repo is useful
 
@@ -48,38 +102,6 @@ By the end of a session with this repo, a student should understand:
 - attention changes which earlier tokens matter most
 - architecture choices like attention, position, and layer norm affect behavior
 
-## Quick Start
-
-### 1) Use the repo-local .NET environment
-
-This repo includes a PowerShell helper that redirects .NET and NuGet state into `C:\MiniGPT\.dotnet` so builds and tests do not depend on a writable user profile.
-
-```powershell
-. .\scripts\Use-LocalDotNetEnv.ps1
-Initialize-LocalDotNetEnv -RepoRoot "C:\MiniGPT"
-```
-
-If you use the scripts in `.\scripts`, this setup is applied automatically.
-
-### 2) Build and test
-
-```powershell
-Invoke-RepoDotNet -Arguments @("build", ".\MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj", "-c", "Release")
-Invoke-RepoDotNet -Arguments @("test", ".\MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj", "-c", "Release", "--no-build", "--no-restore")
-```
-
-### 3) Try the CLI
-
-```powershell
-$cli = ".\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
-
-dotnet run -c Release --project $cli -- --help
-dotnet run -c Release --project $cli -- predict --prompt "The capital of France is" --topn 5
-dotnet run -c Release --project $cli -- step --prompt "The capital of France is" --tokens 3 --seed 42 --explain
-dotnet run -c Release --project $cli -- inspect pipeline --prompt "The capital of France is"
-dotnet run -c Release --project $cli -- compare sampling --prompt "The capital of France is" --tokens 8
-```
-
 ## Best Ways To Use This Repo
 
 ### Guided walkthrough
@@ -90,7 +112,7 @@ For a teacher-led or self-paced walkthrough:
 powershell -ExecutionPolicy Bypass -File .\scripts\student-walkthrough.ps1
 ```
 
-This pauses between sections and writes a transcript to `walkthrough-output.txt`.
+This pauses between sections and writes a transcript to `scripts\walkthrough-output.txt` by default.
 
 ### Student lab pack
 
@@ -130,6 +152,12 @@ Use this to teach:
 - logits vs probabilities
 - top-N candidates
 - why "most likely next token" is not the same as "true answer"
+
+Add `--json` when you want stable machine-readable output:
+
+```powershell
+dotnet run -c Release --project $cli -- predict --prompt "The capital of France is" --topn 5 --json
+```
 
 ### `generate`
 
@@ -227,6 +255,14 @@ Shows all of the above in one report:
 
 This is the best single command to show a student who asks, "What is the model doing right now?"
 
+Each inspection topic also supports `--json`:
+
+```powershell
+dotnet run -c Release --project $cli -- inspect pipeline --prompt "The capital of France is" --dims 6 --attention-topn 5 --json
+```
+
+The JSON uses camelCase properties and includes a `schemaVersion`, command metadata, prompt tokens, and the topic-specific sections requested by the command.
+
 ### `compare`
 
 The second big upgrade in this repo. It lets students compare behaviors instead of memorizing definitions.
@@ -268,6 +304,38 @@ Good for teaching:
 - architecture decisions change behavior
 - removing a component is a useful learning tool
 - "what each part does" becomes visible through comparison
+
+Both comparison modes support `--json` for downstream tools:
+
+```powershell
+dotnet run -c Release --project $cli -- compare sampling --prompt "The capital of France is" --tokens 8 --json
+dotnet run -c Release --project $cli -- compare ablation --prompt "The capital of France is" --tokens 8 --json
+```
+
+### `report`
+
+Generates a polished standalone HTML report with embedded CSS and no external runtime dependency.
+
+```powershell
+dotnet run -c Release --project $cli -- report --prompt "The capital of France is" --out artifacts/demo-report.html
+```
+
+The report includes:
+
+- prompt summary
+- token table
+- embedding preview
+- attention heatmap by layer
+- top next-token probability bars
+- deterministic vs seeded sampling comparison
+- ablation comparison
+- short "what this teaches" notes
+
+You can generate the same demo artifact with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\demo-report.ps1
+```
 
 ### `learn`
 
@@ -331,12 +399,18 @@ It shows:
 - token probability is not the same as factual reasoning
 - output depends on learned patterns in this toy system
 
+## Naming Note
+
+The public repo name is **MiniGPTSharp** because it reads cleanly as a C# teaching demo. The solution, folders, and namespaces use **MiniGPTCSharp** to preserve the original project identity and make the C# language target explicit.
+
 ## Project Structure
 
-- [`MiniGPTCSharp`](/C:/MiniGPT/MiniGPTCSharp) contains the toy model, tokenizer, tensor wrapper, and inspection types
-- [`MiniGPTCSharp.Cli`](/C:/MiniGPT/MiniGPTCSharp.Cli) contains the learning CLI
-- [`MiniGPTCSharp.Tests`](/C:/MiniGPT/MiniGPTCSharp.Tests) contains golden tests and inspection tests
-- [`scripts`](/C:/MiniGPT/scripts) contains walkthrough, lab, smoke, and test scripts
+- [`MiniGPTCSharp`](MiniGPTCSharp) contains the toy model, tokenizer, tensor wrapper, and inspection types
+- [`MiniGPTCSharp.Cli`](MiniGPTCSharp.Cli) contains the learning CLI
+- [`MiniGPTCSharp.Web`](MiniGPTCSharp.Web) contains the GPT Microscope ASP.NET Core playground
+- [`MiniGPTCSharp.Tests`](MiniGPTCSharp.Tests) contains xUnit golden tests and inspection tests
+- [`scripts`](scripts) contains walkthrough, lab, smoke, and test scripts
+- [`docs`](docs) contains the architecture overview and workshop guide
 
 ## What This Repo Is Not
 
@@ -353,7 +427,7 @@ That means a good change in this repo is one that makes the internals easier to 
 
 ## Testing
 
-The test project checks:
+The xUnit test project checks:
 
 - deterministic golden outputs
 - prompt inspection structure
@@ -362,7 +436,13 @@ The test project checks:
 Run:
 
 ```powershell
-Invoke-RepoDotNet -Arguments @("test", ".\MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj", "-c", "Release")
+dotnet test .\MiniGPTCSharp.Tests\MiniGPTCSharp.Tests.csproj -c Release
+```
+
+For the full local regression flow, including CLI smoke checks:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\test-all.ps1
 ```
 
 ## Suggested Next Improvements
@@ -373,6 +453,6 @@ If you want to keep evolving this repo as a teaching tool, the next high-value i
 - add a "teacher notes" document with suggested discussion prompts
 - add a few fixed classroom exercises with expected observations
 - add a `compare prompt-a prompt-b` mode to show context sensitivity
-- add a small web UI on top of the existing inspection APIs
+- add saved example prompts for repeatable demos
 
 Those would deepen the teaching experience without making the core model much bigger.

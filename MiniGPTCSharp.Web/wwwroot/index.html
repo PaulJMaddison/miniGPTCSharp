@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GPT Microscope</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand-kicker">MiniGPTCSharp</div>
+      <h1>GPT Microscope</h1>
+    </div>
+    <div id="status" class="status-pill">Ready</div>
+  </header>
+
+  <main class="app-shell">
+    <section class="control-panel" aria-label="Playground controls">
+      <label class="prompt-box">
+        <span>Prompt</span>
+        <textarea id="prompt" rows="5" spellcheck="false">The capital of France is</textarea>
+      </label>
+
+      <div class="segmented" aria-label="Sampling mode">
+        <button class="segment active" type="button" data-mode="deterministic">Deterministic</button>
+        <button class="segment" type="button" data-mode="seeded">Seeded</button>
+      </div>
+
+      <div class="control-grid">
+        <label><span>Seed</span><input id="seed" type="number" value="42" step="1"></label>
+        <label><span>Temperature <output id="temperatureValue">0.8</output></span><input id="temperature" type="range" min="0" max="2" value="0.8" step="0.05"></label>
+        <label><span>Top-k <output id="topKValue">10</output></span><input id="topK" type="range" min="1" max="20" value="10" step="1"></label>
+        <label><span>Tokens <output id="tokenCountValue">6</output></span><input id="tokenCount" type="range" min="1" max="12" value="6" step="1"></label>
+      </div>
+
+      <div class="toggle-stack">
+        <label><input id="disableAttention" type="checkbox"> Disable attention</label>
+        <label><input id="disablePosition" type="checkbox"> Disable position embeddings</label>
+        <label><input id="disableLayerNorm" type="checkbox"> Disable layer norm</label>
+      </div>
+
+      <div class="action-row">
+        <button id="runButton" class="primary" type="button">Run</button>
+        <button id="exportButton" class="secondary" type="button">Export report</button>
+      </div>
+    </section>
+
+    <section class="playground">
+      <nav class="view-tabs" aria-label="Views">
+        <button class="view-tab active" type="button" data-view="inspect">Inspect</button>
+        <button class="view-tab" type="button" data-view="compare">Compare ablations</button>
+      </nav>
+
+      <div id="inspectView" class="view active">
+        <section class="panel generated-panel">
+          <div class="panel-heading"><h2>Generated text</h2><span id="modeLabel" class="meta"></span></div>
+          <p id="generatedText" class="generated-text"></p>
+        </section>
+
+        <div class="dashboard-grid">
+          <section class="panel">
+            <div class="panel-heading"><h2>Tokens</h2><span id="tokenCountMeta" class="meta"></span></div>
+            <div id="tokens" class="token-strip"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading"><h2>Next-token distribution</h2><span id="candidateMeta" class="meta"></span></div>
+            <div id="probabilities" class="probability-list"></div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-heading"><h2>Attention matrix</h2><div id="layerTabs" class="layer-tabs"></div></div>
+          <div id="attentionHeatmap" class="heatmap-wrap"></div>
+          <div id="attentionTargets" class="target-strip"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><h2>Generation timeline</h2><span id="timelineMeta" class="meta"></span></div>
+          <div id="timeline" class="timeline"></div>
+        </section>
+      </div>
+
+      <div id="compareView" class="view">
+        <section class="panel">
+          <div class="panel-heading"><h2>Ablation compare</h2><span class="meta">Baseline / no-attention / no-position / no-layernorm</span></div>
+          <div id="ablations" class="ablation-grid"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

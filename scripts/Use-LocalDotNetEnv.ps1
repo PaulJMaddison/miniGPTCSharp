@@ -1,7 +1,19 @@
+function Get-DefaultRepoRoot {
+    if ([string]::IsNullOrWhiteSpace($PSScriptRoot)) {
+        return (Get-Location).Path
+    }
+
+    return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+}
+
 function Initialize-LocalDotNetEnv {
     param(
-        [string]$RepoRoot = "C:\MiniGPT"
+        [string]$RepoRoot = ""
     )
+
+    if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+        $RepoRoot = Get-DefaultRepoRoot
+    }
 
     $localRoot = Join-Path $RepoRoot ".dotnet"
     $nugetRoot = Join-Path $localRoot "nuget"

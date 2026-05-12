@@ -1,9 +1,17 @@
 param(
-  [string]$RepoRoot = "C:\MiniGPT",
-  [string]$CliProj  = "C:\MiniGPT\MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj",
+  [string]$RepoRoot = "",
+  [string]$CliProj  = "",
   [string]$Config   = "Release",
   [string]$OutFile  = "walkthrough-output.txt"
 )
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+  $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+}
+
+if ([string]::IsNullOrWhiteSpace($CliProj)) {
+  $CliProj = Join-Path $RepoRoot "MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj"
+}
 
 . (Join-Path $PSScriptRoot "Use-LocalDotNetEnv.ps1")
 Initialize-LocalDotNetEnv -RepoRoot $RepoRoot

@@ -3,3 +3,9 @@
 /.vs
 /.dotnet
 **/NuGet/Migrations/
+**/TestResults/
+**/coverage/
+*.trx
+*.coverage
+*.coveragexml
+**/walkthrough-output.txt

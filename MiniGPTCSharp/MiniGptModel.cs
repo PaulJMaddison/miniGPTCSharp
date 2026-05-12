@@ -97,7 +97,7 @@ public class MiniGptModel
         var candidateCount = Math.Clamp(topK, 1, nextTokenLogits.Length);
         var useGreedy = deterministic || temperature <= 0f || candidateCount == 1;
         var filteredLogits = ApplyTopKFilter(nextTokenLogits, candidateCount);
-        var probabilities = Softmax(filteredLogits, useGreedy ? 1f : temperature);
+        var probabilities = Softmax(filteredLogits, temperature);
         var candidates = BuildTopKCandidates(nextTokenLogits, probabilities, candidateCount);
 
         var selectedTokenId = useGreedy
@@ -149,6 +149,16 @@ public class MiniGptModel
         int topKFilter = 0)
     {
         var tokens = Tokenizer.Encode(prompt);
+        return PredictNextTokens(tokens, topN, temperature, topKFilter);
+    }
+
+    public IReadOnlyList<NextTokenPrediction> PredictNextTokens(
+        IReadOnlyList<int> tokenIds,
+        int topN = 5,
+        float temperature = 1.0f,
+        int topKFilter = 0)
+    {
+        var tokens = tokenIds.ToArray();
         var nextTokenLogits = ComputeNextTokenLogits(tokens);
 
         var safeTemperature = temperature <= 0f ? 1f : temperature;
@@ -183,6 +193,29 @@ public class MiniGptModel
         var pieces = Tokenizer.SplitTokens(prompt);
         var knownFlags = pieces.Select(Tokenizer.HasToken).ToArray();
         var tokens = Tokenizer.Encode(prompt);
+        return InspectTokens(prompt, tokens, pieces, knownFlags, predictionTopN, attentionTopN);
+    }
+
+    public PromptInspection InspectTokenIds(
+        IReadOnlyList<int> tokenIds,
+        int predictionTopN = 5,
+        int attentionTopN = 3,
+        string? prompt = null)
+    {
+        var tokens = tokenIds.ToArray();
+        var pieces = tokens.Select(Tokenizer.TokenText).ToArray();
+        var knownFlags = Enumerable.Repeat(true, tokens.Length).ToArray();
+        return InspectTokens(prompt ?? Tokenizer.Decode(tokens), tokens, pieces, knownFlags, predictionTopN, attentionTopN);
+    }
+
+    private PromptInspection InspectTokens(
+        string prompt,
+        IReadOnlyList<int> tokens,
+        IReadOnlyList<string> pieces,
+        IReadOnlyList<bool> knownFlags,
+        int predictionTopN,
+        int attentionTopN)
+    {
         var embeddings = BuildEmbeddings(tokens);
         var hidden = embeddings;
         var layers = new List<LayerAttentionInspection>(_layers.Count);
@@ -190,6 +223,7 @@ public class MiniGptModel
         for (var i = 0; i < _layers.Count; i++)
         {
             hidden = _layers[i].Forward(hidden, tokens, Config);
+            var attentionWeights = ExtractTensorRows(_layers[i].Attention.LastAttentionWeights);
             var lastTokenWeights = ExtractLastTokenWeights(_layers[i].Attention.LastAttentionWeights);
             var topTargets = lastTokenWeights
                 .Select((weight, tokenIndex) => new AttentionTargetInspection
@@ -205,6 +239,7 @@ public class MiniGptModel
             layers.Add(new LayerAttentionInspection
             {
                 LayerIndex = i,
+                AttentionWeights = attentionWeights,
                 LastTokenWeights = lastTokenWeights,
                 TopTargets = topTargets
             });
@@ -224,7 +259,7 @@ public class MiniGptModel
             Prompt = prompt,
             Tokens = tokenInspections,
             Layers = layers,
-            Predictions = PredictNextTokens(prompt, topN: predictionTopN, temperature: Config.Temperature, topKFilter: 0)
+            Predictions = PredictNextTokens(tokens, topN: predictionTopN, temperature: Config.Temperature, topKFilter: 0)
         };
     }
 
@@ -386,6 +421,17 @@ public class MiniGptModel
         }
 
         return values;
+    }
+
+    private static List<IReadOnlyList<float>> ExtractTensorRows(Tensor tensor)
+    {
+        var rows = new List<IReadOnlyList<float>>(tensor.Rows);
+        for (var row = 0; row < tensor.Rows; row++)
+        {
+            rows.Add(ExtractTensorRow(tensor, row));
+        }
+
+        return rows;
     }
 
     private static List<float> ExtractLastTokenWeights(Tensor weights)

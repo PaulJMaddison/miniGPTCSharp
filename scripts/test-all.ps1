@@ -1,9 +1,12 @@
 param(
-  # Change this if your repo lives elsewhere:
-  [string]$RepoRoot = "C:\MiniGPT",
+  [string]$RepoRoot = "",
   [string]$Config   = "Release",
   [int]$Tokens      = 30
 )
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+  $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+}
 
 . (Join-Path $PSScriptRoot "Use-LocalDotNetEnv.ps1")
 Initialize-LocalDotNetEnv -RepoRoot $RepoRoot

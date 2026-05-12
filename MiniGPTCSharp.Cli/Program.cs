@@ -1,4 +1,5 @@
 using MiniGPTCSharp;
+using System.Text;
 
 var commands = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
@@ -7,7 +8,8 @@ var commands = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     "step",
     "learn",
     "inspect",
-    "compare"
+    "compare",
+    "report"
 };
 
 var parsedArgs = StripDirectives(args);
@@ -108,6 +110,16 @@ switch (parsedArgs[0].ToLowerInvariant())
         }
 
         RunCompareMode(parsedArgs[1], parsedArgs[2..]);
+        return;
+
+    case "report":
+        if (HasHelpFlag(parsedArgs[1..]))
+        {
+            PrintReportHelp();
+            return;
+        }
+
+        RunReportMode(parsedArgs[1..]);
         return;
 }
 
@@ -255,6 +267,14 @@ static void RunPredict(string[] args)
     var topKFilter = ParseInt(GetOption(args, "--topk"), 0);
     var deterministic = args.Contains("--deterministic", StringComparer.OrdinalIgnoreCase);
     var explain = args.Contains("--explain", StringComparer.OrdinalIgnoreCase);
+    var json = args.Contains("--json", StringComparer.OrdinalIgnoreCase);
+
+    if (json)
+    {
+        var export = MiniGptExports.BuildPredict(prompt, topN, temperature, topKFilter, deterministic);
+        Console.WriteLine(MiniGptJson.Serialize(export));
+        return;
+    }
 
     var model = new MiniGptModel();
     var predictions = model.PredictNextTokens(prompt, topN, temperature, topKFilter);
@@ -293,13 +313,31 @@ static void RunInspectMode(string topic, string[] args)
 {
     var prompt = GetPrompt(args);
     var config = BuildConfig(args);
-    var model = new MiniGptModel(config);
     var predictionTopN = ParseInt(GetOption(args, "--topn"), 5);
     var attentionTopN = ParseInt(GetOption(args, "--attention-topn"), 5);
     var dimsToShow = ParseInt(GetOption(args, "--dims"), Math.Min(8, config.EmbeddingSize));
+    var json = args.Contains("--json", StringComparer.OrdinalIgnoreCase);
+    var normalizedTopic = topic.ToLowerInvariant();
+
+    if (normalizedTopic is not ("tokens" or "embeddings" or "attention" or "pipeline"))
+    {
+        Console.WriteLine($"Unknown inspect topic: {topic}");
+        Console.WriteLine("Try: tokens, embeddings, attention, pipeline");
+        Environment.ExitCode = 1;
+        return;
+    }
+
+    if (json)
+    {
+        var export = MiniGptExports.BuildInspection(normalizedTopic, prompt, config, predictionTopN, attentionTopN, dimsToShow);
+        Console.WriteLine(MiniGptJson.Serialize(export));
+        return;
+    }
+
+    var model = new MiniGptModel(config);
     var inspection = model.InspectPrompt(prompt, predictionTopN, attentionTopN);
 
-    switch (topic.ToLowerInvariant())
+    switch (normalizedTopic)
     {
         case "tokens":
             PrintTokenInspection(inspection);
@@ -318,7 +356,7 @@ static void RunInspectMode(string topic, string[] args)
             PrintPipelineInspection(inspection, dimsToShow);
             return;
         default:
-            Console.WriteLine($"Unknown inspect topic: {topic}");
+            Console.WriteLine($"Unknown inspect topic: {normalizedTopic}");
             Console.WriteLine("Try: tokens, embeddings, attention, pipeline");
             Environment.ExitCode = 1;
             return;
@@ -329,14 +367,15 @@ static void RunCompareMode(string topic, string[] args)
 {
     var prompt = GetPrompt(args);
     var tokensToGenerate = ParseInt(GetOption(args, "--tokens"), 8);
+    var json = args.Contains("--json", StringComparer.OrdinalIgnoreCase);
 
     switch (topic.ToLowerInvariant())
     {
         case "sampling":
-            RunSamplingComparison(prompt, tokensToGenerate);
+            RunSamplingComparison(prompt, tokensToGenerate, json);
             return;
         case "ablation":
-            RunAblationComparison(prompt, tokensToGenerate);
+            RunAblationComparison(prompt, tokensToGenerate, json);
             return;
         default:
             Console.WriteLine($"Unknown compare topic: {topic}");
@@ -346,83 +385,90 @@ static void RunCompareMode(string topic, string[] args)
     }
 }
 
-static void RunSamplingComparison(string prompt, int tokensToGenerate)
+static void RunSamplingComparison(string prompt, int tokensToGenerate, bool json = false)
 {
-    var model = new MiniGptModel();
-    var predictions = model.PredictNextTokens(prompt, topN: 5, temperature: 1.0f, topKFilter: 0);
-    var deterministic = model.Generate(prompt, maxNewTokens: tokensToGenerate, deterministic: true);
-    var seed42 = model.Generate(prompt, maxNewTokens: tokensToGenerate, seed: 42);
-    var seed7 = model.Generate(prompt, maxNewTokens: tokensToGenerate, seed: 7);
+    var comparison = MiniGptExports.BuildSamplingComparison(prompt, tokensToGenerate);
+
+    if (json)
+    {
+        Console.WriteLine(MiniGptJson.Serialize(comparison));
+        return;
+    }
 
     Console.WriteLine("Comparison mode: sampling");
     Console.WriteLine($"Prompt: \"{prompt}\"");
     Console.WriteLine();
     Console.WriteLine("Top next-token beliefs:");
-    for (var i = 0; i < predictions.Count; i++)
+    for (var i = 0; i < comparison.TopPredictions.Count; i++)
     {
-        Console.WriteLine($"  {i + 1}) {predictions[i].TokenText,-10} p={predictions[i].Probability:P2}");
+        Console.WriteLine($"  {i + 1}) {comparison.TopPredictions[i].TokenText,-10} p={comparison.TopPredictions[i].Probability:P2}");
     }
 
     Console.WriteLine();
     Console.WriteLine("Deterministic argmax:");
-    Console.WriteLine($"  {deterministic}");
+    Console.WriteLine($"  {comparison.Runs[0].Output}");
 
     Console.WriteLine("Seeded sampling (seed=42):");
-    Console.WriteLine($"  {seed42}");
+    Console.WriteLine($"  {comparison.Runs[1].Output}");
 
     Console.WriteLine("Seeded sampling (seed=7):");
-    Console.WriteLine($"  {seed7}");
+    Console.WriteLine($"  {comparison.Runs[2].Output}");
 
     Console.WriteLine();
     Console.WriteLine("What this teaches:");
-    Console.WriteLine("- Predict shows the belief distribution.");
-    Console.WriteLine("- Deterministic generation always follows the highest-probability path.");
-    Console.WriteLine("- Sampling can choose different but still plausible continuations.");
+    foreach (var note in comparison.Notes)
+    {
+        Console.WriteLine($"- {note}");
+    }
 }
 
-static void RunAblationComparison(string prompt, int tokensToGenerate)
+static void RunAblationComparison(string prompt, int tokensToGenerate, bool json = false)
 {
-    var runs = new[]
+    var comparison = MiniGptExports.BuildAblationComparison(prompt, tokensToGenerate);
+
+    if (json)
     {
-        new
-        {
-            Label = "Baseline",
-            Config = new GptConfig { LayerCount = 2, TopK = 10, Temperature = 0.8f }
-        },
-        new
-        {
-            Label = "No attention",
-            Config = new GptConfig { LayerCount = 2, TopK = 10, Temperature = 0.8f, DisableAttention = true }
-        },
-        new
-        {
-            Label = "No position embeddings",
-            Config = new GptConfig { LayerCount = 2, TopK = 10, Temperature = 0.8f, DisablePositionEmbeddings = true }
-        },
-        new
-        {
-            Label = "No layer norm",
-            Config = new GptConfig { LayerCount = 2, TopK = 10, Temperature = 0.8f, DisableLayerNorm = true }
-        }
-    };
+        Console.WriteLine(MiniGptJson.Serialize(comparison));
+        return;
+    }
 
     Console.WriteLine("Comparison mode: ablation");
     Console.WriteLine($"Prompt: \"{prompt}\"");
     Console.WriteLine();
 
-    foreach (var run in runs)
+    foreach (var run in comparison.Runs)
     {
-        var model = new MiniGptModel(run.Config);
-        var generated = model.Generate(prompt, maxNewTokens: tokensToGenerate, deterministic: true);
         Console.WriteLine($"{run.Label}:");
-        Console.WriteLine($"  {generated}");
+        Console.WriteLine($"  {run.Output}");
     }
 
     Console.WriteLine();
     Console.WriteLine("What this teaches:");
-    Console.WriteLine("- Attention helps the model reuse earlier tokens as context.");
-    Console.WriteLine("- Position embeddings help it distinguish order.");
-    Console.WriteLine("- Layer norm stabilizes the internal signal across layers.");
+    foreach (var note in comparison.Notes)
+    {
+        Console.WriteLine($"- {note}");
+    }
+}
+
+static void RunReportMode(string[] args)
+{
+    var prompt = GetPrompt(args);
+    var outPath = GetOption(args, "--out") ?? "report.html";
+    var tokensToGenerate = ParseInt(GetOption(args, "--tokens"), 8);
+    var dimsToShow = ParseInt(GetOption(args, "--dims"), 8);
+    var fullPath = Path.GetFullPath(outPath);
+    var directory = Path.GetDirectoryName(fullPath);
+
+    if (!string.IsNullOrWhiteSpace(directory))
+    {
+        Directory.CreateDirectory(directory);
+    }
+
+    var report = MiniGptExports.BuildReport(prompt, tokensToGenerate, dimsToShow);
+    var html = MiniGptHtmlReport.BuildHtml(report);
+    File.WriteAllText(fullPath, html, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+    Console.WriteLine($"Report written: {fullPath}");
 }
 
 static void RunLearnMode(string topic)
@@ -583,7 +629,8 @@ static bool IsCommandToken(string arg)
        || arg.Equals("step", StringComparison.OrdinalIgnoreCase)
        || arg.Equals("learn", StringComparison.OrdinalIgnoreCase)
        || arg.Equals("inspect", StringComparison.OrdinalIgnoreCase)
-       || arg.Equals("compare", StringComparison.OrdinalIgnoreCase);
+       || arg.Equals("compare", StringComparison.OrdinalIgnoreCase)
+       || arg.Equals("report", StringComparison.OrdinalIgnoreCase);
 
 static int ParseInt(string? value, int fallback) => int.TryParse(value, out var parsed) ? parsed : fallback;
 
@@ -731,8 +778,9 @@ static void PrintHelp()
     Console.WriteLine("  generate --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain]");
     Console.WriteLine("  step --prompt text [--tokens n] [--temperature n] [--top-k n] [--layers n] [--seed n] [--deterministic] [--explain] [--show-logits]");
     Console.WriteLine("  predict --prompt text [--topn N] [--temp T] [--topk K] [--deterministic] [--explain]");
-    Console.WriteLine("  inspect tokens|embeddings|attention|pipeline --prompt text");
-    Console.WriteLine("  compare sampling|ablation --prompt text [--tokens n]");
+    Console.WriteLine("  inspect tokens|embeddings|attention|pipeline --prompt text [--json]");
+    Console.WriteLine("  compare sampling|ablation --prompt text [--tokens n] [--json]");
+    Console.WriteLine("  report --prompt text --out report.html");
     Console.WriteLine("  learn tokenization|embeddings|attention|sampling|ablation");
     Console.WriteLine("Use --help or -h with any command for command-specific help.");
     Console.WriteLine("Break-the-model flags:");
@@ -753,17 +801,22 @@ static void PrintStepHelp()
 
 static void PrintPredictHelp()
 {
-    Console.WriteLine("predict --prompt text [--topn N] [--temp T] [--topk K] [--deterministic] [--explain]");
+    Console.WriteLine("predict --prompt text [--topn N] [--temp T] [--topk K] [--deterministic] [--explain] [--json]");
 }
 
 static void PrintInspectHelp()
 {
-    Console.WriteLine("inspect tokens|embeddings|attention|pipeline --prompt text [--dims N] [--topn N] [--attention-topn N] [--layers n]");
+    Console.WriteLine("inspect tokens|embeddings|attention|pipeline --prompt text [--dims N] [--topn N] [--attention-topn N] [--layers n] [--json]");
 }
 
 static void PrintCompareHelp()
 {
-    Console.WriteLine("compare sampling|ablation --prompt text [--tokens n]");
+    Console.WriteLine("compare sampling|ablation --prompt text [--tokens n] [--json]");
+}
+
+static void PrintReportHelp()
+{
+    Console.WriteLine("report --prompt text --out report.html [--tokens n] [--dims n]");
 }
 
 static void PrintLearnHelp()

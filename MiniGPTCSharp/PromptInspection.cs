@@ -28,6 +28,8 @@ public sealed class LayerAttentionInspection
 {
     public int LayerIndex { get; init; }
 
+    public IReadOnlyList<IReadOnlyList<float>> AttentionWeights { get; init; } = Array.Empty<IReadOnlyList<float>>();
+
     public IReadOnlyList<float> LastTokenWeights { get; init; } = Array.Empty<float>();
 
     public IReadOnlyList<AttentionTargetInspection> TopTargets { get; init; } = Array.Empty<AttentionTargetInspection>();

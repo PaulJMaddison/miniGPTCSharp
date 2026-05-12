@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The capital of France is - GPT Internals Report</title>
+  <style>
+    :root {
+      --paper: #fbfaf7;
+      --surface: #ffffff;
+      --ink: #18212f;
+      --muted: #5d6673;
+      --line: #dfd9cc;
+      --soft-line: #eee8dc;
+      --green: #28665f;
+      --gold: #c27a20;
+      --coral: #b84f45;
+      --blue: #3f67a1;
+      --code: #f4efe5;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.5;
+      letter-spacing: 0;
+    }
+
+    .page {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 36px 0 52px;
+    }
+
+    .report-header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 24px;
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 8px 0 12px;
+      font-size: 38px;
+      line-height: 1.08;
+      font-weight: 780;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    h3 {
+      margin: 20px 0 10px;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    p { margin: 0; }
+
+    .prompt {
+      max-width: 840px;
+      color: var(--muted);
+      font-size: 19px;
+      overflow-wrap: anywhere;
+    }
+
+    .prompt strong { color: var(--ink); }
+
+    .section {
+      border-top: 1px solid var(--line);
+      padding: 30px 0;
+    }
+
+    .section-intro {
+      max-width: 760px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      padding: 22px 0 6px;
+    }
+
+    .stat-card,
+    .note-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin-top: 6px;
+      color: var(--ink);
+      font-size: 24px;
+      font-weight: 780;
+      overflow-wrap: anywhere;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 560px;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--soft-line);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .mono {
+      font-family: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .pill {
+      display: inline-block;
+      max-width: 100%;
+      padding: 3px 7px;
+      border-radius: 6px;
+      background: var(--code);
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
+
+    .vector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 260px;
+    }
+
+    .vector span {
+      border-radius: 6px;
+      background: var(--code);
+      color: var(--ink);
+      padding: 3px 6px;
+    }
+
+    .bar-list { display: grid; gap: 12px; }
+
+    .bar-item {
+      display: grid;
+      grid-template-columns: minmax(120px, 220px) 1fr minmax(64px, auto);
+      gap: 12px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .bar-token {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .bar-track {
+      height: 12px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #ebe5d8;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--green), var(--gold));
+    }
+
+    .bar-percent {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .attention-layer { margin-top: 14px; }
+    .heatmap-cell { min-width: 86px; font-variant-numeric: tabular-nums; }
+
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .note-card {
+      border-top: 4px solid var(--green);
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .note-card:nth-child(2) { border-top-color: var(--gold); }
+    .note-card:nth-child(3) { border-top-color: var(--blue); }
+    .note-card:nth-child(4) { border-top-color: var(--coral); }
+    .note-card:nth-child(5) { border-top-color: var(--ink); }
+
+    @media (max-width: 860px) {
+      .summary-grid,
+      .notes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+      .bar-item { grid-template-columns: minmax(0, 1fr) minmax(68px, auto); }
+      .bar-track { grid-column: 1 / -1; grid-row: 2; }
+    }
+
+    @media (max-width: 560px) {
+      .page {
+        width: min(100% - 22px, 1120px);
+        padding-top: 24px;
+      }
+
+      h1 { font-size: 30px; }
+      .prompt { font-size: 17px; }
+      .summary-grid,
+      .notes-grid { grid-template-columns: 1fr; }
+      th,
+      td { padding: 9px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="report-header">
+      <div class="eyebrow">MiniGPTSharp offline inspection</div>
+      <h1>GPT Internals Report</h1>
+      <p class="prompt"><strong>Prompt:</strong> The capital of France is</p>
+    </header>
+    <section class="summary-grid" aria-label="Prompt summary">
+      <article class="stat-card">
+        <div class="stat-label">Characters</div>
+        <div class="stat-value">24</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">Tokens</div>
+        <div class="stat-value">5</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">Distinct IDs</div>
+        <div class="stat-value">5</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">Top next token</div>
+        <div class="stat-value">capital</div>
+      </article>
+    </section>
+    <section class="section">
+      <h2>Token Table</h2>
+      <p class="section-intro">The prompt becomes discrete token IDs before the model can do any numeric work.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Position</th><th>Token</th><th>ID</th><th>Vocabulary source</th></tr></thead><tbody>
+        <tr>
+          <td class="mono">0</td><td><span class="pill mono">The</span></td><td class="mono">4</td><td>seeded vocabulary</td>
+        </tr>
+        <tr>
+          <td class="mono">1</td><td><span class="pill mono">capital</span></td><td class="mono">12</td><td>seeded vocabulary</td>
+        </tr>
+        <tr>
+          <td class="mono">2</td><td><span class="pill mono">of</span></td><td class="mono">5</td><td>seeded vocabulary</td>
+        </tr>
+        <tr>
+          <td class="mono">3</td><td><span class="pill mono">France</span></td><td class="mono">11</td><td>seeded vocabulary</td>
+        </tr>
+        <tr>
+          <td class="mono">4</td><td><span class="pill mono">is</span></td><td class="mono">8</td><td>seeded vocabulary</td>
+        </tr>
+        </tbody></table></div>
+    </section>
+    <section class="section">
+      <h2>Embedding Preview</h2>
+      <p class="section-intro">Each token ID is expanded into a numeric vector. This report shows the first dimensions to keep the signal readable.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Token</th><th>ID</th><th>First dimensions</th></tr></thead><tbody>
+        <tr>
+          <td><span class="pill mono">The</span></td><td class="mono">4</td><td><div class="vector mono">
+            <span>1.342</span>
+            <span>1.639</span>
+            <span>1.856</span>
+            <span>1.966</span>
+            <span>1.953</span>
+            <span>1.819</span>
+            <span>1.577</span>
+            <span>1.256</span>
+          </div></td>
+        </tr>
+        <tr>
+          <td><span class="pill mono">capital</span></td><td class="mono">12</td><td><div class="vector mono">
+            <span>1.785</span>
+            <span>1.949</span>
+            <span>1.355</span>
+            <span>0.443</span>
+            <span>-0.109</span>
+            <span>0.092</span>
+            <span>0.852</span>
+            <span>1.536</span>
+          </div></td>
+        </tr>
+        <tr>
+          <td><span class="pill mono">of</span></td><td class="mono">5</td><td><div class="vector mono">
+            <span>1.397</span>
+            <span>1.700</span>
+            <span>1.853</span>
+            <span>1.819</span>
+            <span>1.595</span>
+            <span>1.204</span>
+            <span>0.698</span>
+            <span>0.146</span>
+          </div></td>
+        </tr>
+        <tr>
+          <td><span class="pill mono">France</span></td><td class="mono">11</td><td><div class="vector mono">
+            <span>1.725</span>
+            <span>1.915</span>
+            <span>1.408</span>
+            <span>0.480</span>
+            <span>-0.331</span>
+            <span>-0.584</span>
+            <span>-0.222</span>
+            <span>0.394</span>
+          </div></td>
+        </tr>
+        <tr>
+          <td><span class="pill mono">is</span></td><td class="mono">8</td><td><div class="vector mono">
+            <span>1.558</span>
+            <span>1.830</span>
+            <span>1.681</span>
+            <span>1.123</span>
+            <span>0.307</span>
+            <span>-0.525</span>
+            <span>-1.133</span>
+            <span>-1.363</span>
+          </div></td>
+        </tr>
+        </tbody></table></div>
+    </section>
+    <section class="section">
+      <h2>Attention By Layer</h2>
+      <p class="section-intro">The heatmap shows how strongly the final token attends to each token in the prompt. Darker cells carry more weight.</p>
+      <div class="attention-layer">
+        <h3>Layer 0</h3>
+        <div class="table-wrap"><table><thead><tr>
+          <th>The</th>
+          <th>capital</th>
+          <th>of</th>
+          <th>France</th>
+          <th>is</th>
+        </tr></thead><tbody><tr>
+          <td class="heatmap-cell mono" style="background: rgba(40, 102, 95, 0.121);">2.84 %</td>
+          <td class="heatmap-cell mono" style="background: rgba(40, 102, 95, 0.108);">1.13 %</td>
+          <td class="heatmap-cell mono" style="background: rgba(40, 102, 95, 0.221);">16.15 %</td>
+          <td class="heatmap-cell mono" style="background: rgba(40, 102, 95, 0.168);">9.08 %</td>
+          <td class="heatmap-cell mono" style="background: rgba(40, 102, 95, 0.631);">70.80 %</td>
+        </tr></tbody></table></div></div>
+      <div class="attention-layer">
+        <h3>Layer 1</h3>
+        <div class="table-wrap"><table><thead><tr>
+          <th>The</th>
+          <th>capital</th>
+          <th>of</th>
+          <th>France</th>
+          <th>is</th>
+        </tr></thead><tbody><tr>
+          <td class="heatmap-cell mono" style="background: rgba(40, 102, 95, 0.165);">8.67 %</td>
+          <td class="heatmap-cell mono" style="background: rgba(40, 102, 95, 0.126);">3.44 %</td>
+          <td class="heatmap-cell mono" style="background: rgba(40, 102, 95, 0.228);">17.13 %</td>
+          <td class="heatmap-cell mono" style="background: rgba(40, 102, 95, 0.187);">11.62 %</td>
+          <td class="heatmap-cell mono" style="background: rgba(40, 102, 95, 0.544);">59.14 %</td>
+        </tr></tbody></table></div></div>
+    </section>
+    <section class="section">
+      <h2>Top Next-Token Probability Bars</h2>
+      <p class="section-intro">These are the model's strongest beliefs for the next token after the prompt.</p>
+      <div class="bar-list">
+        <div class="bar-item">
+          <div class="bar-token"><span class="pill mono">capital</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 100%;"></div></div>
+          <div class="bar-percent mono">21.38 %</div>
+        </div>
+        <div class="bar-item">
+          <div class="bar-token"><span class="pill mono">France</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 82.19%;"></div></div>
+          <div class="bar-percent mono">17.57 %</div>
+        </div>
+        <div class="bar-item">
+          <div class="bar-token"><span class="pill mono">Paris</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 72.6%;"></div></div>
+          <div class="bar-percent mono">15.52 %</div>
+        </div>
+        <div class="bar-item">
+          <div class="bar-token"><span class="pill mono">AI</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 44.4%;"></div></div>
+          <div class="bar-percent mono">9.49 %</div>
+        </div>
+        <div class="bar-item">
+          <div class="bar-token"><span class="pill mono">learning</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width: 36%;"></div></div>
+          <div class="bar-percent mono">7.70 %</div>
+        </div>
+      </div>
+    </section>
+    <section class="section">
+      <h2>Sampling Comparison</h2>
+      <p class="section-intro">Argmax follows the highest probability every time. Seeded sampling uses the same belief distribution but allows different repeatable paths.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Run</th><th>Mode</th><th>Seed</th><th>Output</th></tr></thead><tbody>
+        <tr><td>Deterministic argmax</td><td class="mono">argmax</td><td class="mono">none</td><td>the capital of France is capital Paris model next token learning learning learning</td></tr>
+        <tr><td>Seeded sampling (seed=42)</td><td class="mono">sample</td><td class="mono">42</td><td>the capital of France is AI capital AI next next token learning learning</td></tr>
+        <tr><td>Seeded sampling (seed=7)</td><td class="mono">sample</td><td class="mono">7</td><td>the capital of France is capital AI word model token learning next learning</td></tr>
+        </tbody></table></div>
+    </section>
+    <section class="section">
+      <h2>Ablation Comparison</h2>
+      <p class="section-intro">Removing one mechanism at a time makes the contribution of attention, position, and layer norm easier to see.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Variant</th><th>Changed mechanism</th><th>Output</th></tr></thead><tbody>
+        <tr><td>Baseline</td><td>baseline</td><td>the capital of France is capital Paris model next token learning learning learning</td></tr>
+        <tr><td>No attention</td><td>attention disabled</td><td>the capital of France is learning AI word next token learning learning learning</td></tr>
+        <tr><td>No position embeddings</td><td>position embeddings disabled</td><td>the capital of France is learning AI token AI token AI token AI</td></tr>
+        <tr><td>No layer norm</td><td>layer norm disabled</td><td>the capital of France is learning Paris word next token learning learning learning</td></tr>
+        </tbody></table></div>
+    </section>
+    <section class="section">
+      <h2>What This Teaches</h2>
+      <div class="notes-grid">
+        <article class="note-card">Token tables show the exact discrete context the model sees.</article>
+        <article class="note-card">Embedding previews turn each token into a compact numeric vector.</article>
+        <article class="note-card">Attention weights show which prior tokens influence the final-token state.</article>
+        <article class="note-card">Sampling comparisons separate the model&#39;s belief distribution from the choice policy.</article>
+        <article class="note-card">Ablations make architecture choices visible by removing one mechanism at a time.</article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

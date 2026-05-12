@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniGPTCSharp.Tests", "Mini
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniGPTCSharp.Cli", "MiniGPTCSharp.Cli\MiniGPTCSharp.Cli.csproj", "{8034F210-9427-45EB-8B9A-B4494E238160}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiniGPTCSharp.Web", "MiniGPTCSharp.Web\MiniGPTCSharp.Web.csproj", "{B20E30CA-D959-4C29-9EE0-6AEA12FFCA0D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{8034F210-9427-45EB-8B9A-B4494E238160}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8034F210-9427-45EB-8B9A-B4494E238160}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8034F210-9427-45EB-8B9A-B4494E238160}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B20E30CA-D959-4C29-9EE0-6AEA12FFCA0D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B20E30CA-D959-4C29-9EE0-6AEA12FFCA0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B20E30CA-D959-4C29-9EE0-6AEA12FFCA0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B20E30CA-D959-4C29-9EE0-6AEA12FFCA0D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
